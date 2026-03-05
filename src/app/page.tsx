@@ -17,21 +17,6 @@ export default function Home() {
         </p>
       </section>
 
-      <section className={styles.features}>
-        <div className={styles.featureCard}>
-          <h3>Captures</h3>
-          <p>Photos, vocaux, vidéos, dessins... Immortalisez votre quotidien sans filtre.</p>
-        </div>
-        <div className={styles.featureCard}>
-          <h3>Cercles Intimes</h3>
-          <p>Un espace réservé à vos amis les plus proches, loin du bruit des réseaux sociaux.</p>
-        </div>
-        <div className={styles.featureCard}>
-          <h3>Le Rewind</h3>
-          <p>À la fin de la semaine, découvrez le condensé de vos moments et ceux de vos potes.</p>
-        </div>
-      </section>
-
       <DownloadSection />
 
       <footer className={styles.footer}>
