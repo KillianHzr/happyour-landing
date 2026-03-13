@@ -1,9 +1,11 @@
 import styles from "./page.module.css";
 import DownloadSection from "@/components/DownloadSection";
+import EmailVerified from "@/components/EmailVerified";
 
 export default function Home() {
   return (
     <main className={styles.main}>
+      <EmailVerified />
       <header className={styles.header}>
         <div className={styles.logo}>[noname]</div>
         <div className={styles.studio}>by La Source</div>
