@@ -113,7 +113,7 @@ export default function DownloadSection() {
                     <span className={styles.stepNumber}>2</span>
                     <div className={styles.stepContent}>
                       <p>Rejoignez le programme de test de <strong>[noname]</strong>.</p>
-                      <a href="#" className={styles.link}>Lien TestFlight</a>
+                      <a href="https://testflight.apple.com/join/gvCHSG89" target="_blank" rel="noopener noreferrer" className={styles.link}>Rejoindre sur TestFlight</a>
                     </div>
                   </div>
                   <div className={styles.step}>
