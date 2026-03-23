@@ -16,7 +16,6 @@ import {
   Legend,
 } from "recharts";
 import type { AnalyticsData } from "@/lib/analytics";
-import GroupExplorer from "./GroupExplorer";
 import styles from "./analytics.module.css";
 
 const GREY = {
@@ -63,7 +62,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
   const {
     stats, momentsByUser, typeDistribution,
     hourlyDistribution, activeMembers,
-    groupParticipation, momentTimeline, groups,
+    groupParticipation, momentTimeline,
   } = data;
 
   const maxHour = Math.max(...hourlyDistribution.map((h) => h.count));
@@ -221,16 +220,6 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
           </div>
 
         </div>
-      </div>
-
-      {/* Group Explorer — section distincte */}
-      <div className={styles.explorerSection}>
-        <div className={styles.explorerSectionHeader}>
-          <div className={styles.explorerSectionLine} />
-          <span className={styles.explorerSectionLabel}>Explorer un groupe</span>
-          <div className={styles.explorerSectionLine} />
-        </div>
-        <GroupExplorer groups={groups} />
       </div>
 
       <footer className={styles.dashFooter}>
