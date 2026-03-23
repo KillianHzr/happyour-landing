@@ -16,6 +16,11 @@ export interface HourlySlot {
   count: number;
 }
 
+export interface DailySlot {
+  day: string;
+  count: number;
+}
+
 export interface ActiveMember {
   username: string;
   moments: number;
@@ -44,6 +49,7 @@ export interface AnalyticsData {
   momentsByUser: MomentsByUser[];
   typeDistribution: TypeDistribution[];
   hourlyDistribution: HourlySlot[];
+  dailyDistribution: DailySlot[];
   activeMembers: ActiveMember[];
   groupParticipation: GroupParticipation[];
   momentTimeline: TimelinePoint[];
@@ -119,7 +125,19 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     ([type, count]) => ({ type, count, label: type })
   );
 
-  // 3. Distribution horaire
+  // 3a. Distribution par jour de la semaine (lundi = 0)
+  const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  const dayMap = new Map<number, number>();
+  for (const p of photos) {
+    const dow = (new Date(p.created_at).getDay() + 6) % 7; // 0=Lun … 6=Dim
+    dayMap.set(dow, (dayMap.get(dow) ?? 0) + 1);
+  }
+  const dailyDistribution: DailySlot[] = DAYS_FR.map((day, i) => ({
+    day,
+    count: dayMap.get(i) ?? 0,
+  }));
+
+  // 3b. Distribution horaire
   const hourMap = new Map<number, number>();
   for (const p of photos) {
     const hour = new Date(p.created_at).getHours();
@@ -185,6 +203,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   return {
     momentsByUser,
     typeDistribution,
+    dailyDistribution,
     hourlyDistribution,
     activeMembers,
     groupParticipation,

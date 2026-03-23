@@ -61,11 +61,12 @@ function ChartTooltip({ active, payload, label }: TooltipProps) {
 export default function Dashboard({ data }: { data: AnalyticsData }) {
   const {
     stats, momentsByUser, typeDistribution,
-    hourlyDistribution, activeMembers,
+    dailyDistribution, hourlyDistribution, activeMembers,
     groupParticipation, momentTimeline,
   } = data;
 
   const maxHour = Math.max(...hourlyDistribution.map((h) => h.count));
+  const maxDay = Math.max(...dailyDistribution.map((d) => d.count));
 
   return (
     <main className={styles.dashPage}>
@@ -201,6 +202,25 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                   ))}
                 </div>
               </>
+            )}
+          </div>
+
+          <div className={`${styles.card} glass-effect`}>
+            <p className={styles.cardLabel}>Jour de publication favori</p>
+            {dailyDistribution.every((d) => d.count === 0) ? <Empty /> : (
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={dailyDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={GREY[500]} />
+                  <XAxis dataKey="day" tick={{ fill: "#888", fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: "#888", fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="count" name="Moments" radius={[4, 4, 0, 0]}>
+                    {dailyDistribution.map((entry, i) => (
+                      <Cell key={i} fill={entry.count === maxDay && maxDay > 0 ? GREY[100] : GREY[300]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             )}
           </div>
 
