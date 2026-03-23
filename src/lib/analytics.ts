@@ -1,0 +1,203 @@
+import { supabase } from "./supabase-server";
+
+export interface MomentsByUser {
+  username: string;
+  count: number;
+}
+
+export interface TypeDistribution {
+  type: string;
+  count: number;
+  label: string;
+}
+
+export interface HourlySlot {
+  hour: string;
+  count: number;
+}
+
+export interface ActiveMember {
+  username: string;
+  moments: number;
+  reactions: number;
+  score: number;
+}
+
+export interface GroupParticipation {
+  name: string;
+  rate: number;
+  posted: number;
+  total: number;
+}
+
+export interface TimelinePoint {
+  date: string;
+  count: number;
+}
+
+export interface GroupItem {
+  id: string;
+  name: string;
+}
+
+export interface AnalyticsData {
+  momentsByUser: MomentsByUser[];
+  typeDistribution: TypeDistribution[];
+  hourlyDistribution: HourlySlot[];
+  activeMembers: ActiveMember[];
+  groupParticipation: GroupParticipation[];
+  momentTimeline: TimelinePoint[];
+  groups: GroupItem[];
+  stats: {
+    totalMoments: number;
+    totalUsers: number;
+    totalGroups: number;
+    totalReactions: number;
+  };
+}
+
+/**
+ * Infère le type d'un post.
+ * - image_path null ET note présente → "Texte"
+ * - image_path .mp4 / .mov / .avi … → "Vidéo"
+ * - tout le reste                   → "Photo"
+ */
+function inferType(imagePath: string | null, note: string | null): string {
+  if (!imagePath || imagePath === "text_mode") return "Texte";
+  const ext = imagePath.split(".").pop()?.toLowerCase() ?? "";
+  if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "Vidéo";
+  return "Photo";
+}
+
+export async function fetchAnalyticsData(): Promise<AnalyticsData> {
+  // La table s'appelle "photos" (pas "moments").
+  // Les réactions référencent "photo_id" (pas "moment_id").
+  const [photosRes, profilesRes, groupMembersRes, groupsRes, reactionsRes] =
+    await Promise.all([
+      supabase
+        .from("photos")
+        .select("id, user_id, group_id, image_path, note, created_at"),
+      supabase.from("profiles").select("id, username"),
+      supabase.from("group_members").select("group_id, user_id"),
+      supabase.from("groups").select("id, name"),
+      supabase
+        .from("reactions")
+        .select("photo_id, user_id, type, created_at"),
+    ]);
+
+  const photos = photosRes.data ?? [];
+  const profiles = profilesRes.data ?? [];
+  const groupMembers = groupMembersRes.data ?? [];
+  const groups = groupsRes.data ?? [];
+  const reactions = reactionsRes.data ?? [];
+
+  // Map user id → username
+  const userMap = new Map(
+    profiles.map((p) => [p.id, p.username ?? `user_${p.id.slice(0, 6)}`])
+  );
+
+  // 1. Posts par utilisateur
+  const momentsByUserMap = new Map<string, number>();
+  for (const p of photos) {
+    momentsByUserMap.set(p.user_id, (momentsByUserMap.get(p.user_id) ?? 0) + 1);
+  }
+  const momentsByUser: MomentsByUser[] = [...momentsByUserMap.entries()]
+    .map(([uid, count]) => ({
+      username: userMap.get(uid) ?? uid.slice(0, 8),
+      count,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 12);
+
+  // 2. Répartition par type (inférée depuis image_path + note)
+  const typeMap = new Map<string, number>();
+  for (const p of photos) {
+    const t = inferType(p.image_path, p.note);
+    typeMap.set(t, (typeMap.get(t) ?? 0) + 1);
+  }
+  const typeDistribution: TypeDistribution[] = [...typeMap.entries()].map(
+    ([type, count]) => ({ type, count, label: type })
+  );
+
+  // 3. Distribution horaire
+  const hourMap = new Map<number, number>();
+  for (const p of photos) {
+    const hour = new Date(p.created_at).getHours();
+    hourMap.set(hour, (hourMap.get(hour) ?? 0) + 1);
+  }
+  const hourlyDistribution: HourlySlot[] = Array.from({ length: 24 }, (_, h) => ({
+    hour: `${h}h`,
+    count: hourMap.get(h) ?? 0,
+  }));
+
+  // 4. Membres les plus actifs (score = posts×3 + réactions)
+  const reactionsByUser = new Map<string, number>();
+  for (const r of reactions) {
+    reactionsByUser.set(r.user_id, (reactionsByUser.get(r.user_id) ?? 0) + 1);
+  }
+  const allUsers = new Set([
+    ...momentsByUserMap.keys(),
+    ...reactionsByUser.keys(),
+  ]);
+  const activeMembers: ActiveMember[] = [...allUsers]
+    .map((uid) => {
+      const mCount = momentsByUserMap.get(uid) ?? 0;
+      const rCount = reactionsByUser.get(uid) ?? 0;
+      return {
+        username: userMap.get(uid) ?? uid.slice(0, 8),
+        moments: mCount,
+        reactions: rCount,
+        score: mCount * 3 + rCount,
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+
+  // 5. Taux de participation par groupe
+  const groupParticipation: GroupParticipation[] = groups
+    .map((g) => {
+      const members = groupMembers.filter((gm) => gm.group_id === g.id);
+      const posters = new Set(
+        photos.filter((p) => p.group_id === g.id).map((p) => p.user_id)
+      );
+      const total = members.length;
+      const posted = posters.size;
+      const rate = total > 0 ? Math.round((posted / total) * 100) : 0;
+      return {
+        name: g.name ?? `Groupe ${g.id.slice(0, 6)}`,
+        rate,
+        posted,
+        total,
+      };
+    })
+    .sort((a, b) => b.rate - a.rate);
+
+  // 6. Évolution dans le temps
+  const timelineMap = new Map<string, number>();
+  for (const p of photos) {
+    const date = (p.created_at as string).slice(0, 10);
+    timelineMap.set(date, (timelineMap.get(date) ?? 0) + 1);
+  }
+  const momentTimeline: TimelinePoint[] = [...timelineMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, count]) => ({ date, count }));
+
+  return {
+    momentsByUser,
+    typeDistribution,
+    hourlyDistribution,
+    activeMembers,
+    groupParticipation,
+    momentTimeline,
+    groups: groups.map((g) => ({
+      id: g.id,
+      name: g.name ?? `Groupe ${g.id.slice(0, 6)}`,
+    })),
+    stats: {
+      totalMoments: photos.length,
+      totalUsers: profiles.length,
+      totalGroups: groups.length,
+      totalReactions: reactions.length,
+    },
+  };
+}
