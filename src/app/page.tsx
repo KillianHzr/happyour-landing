@@ -1,8 +1,21 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 import DownloadSection from "@/components/DownloadSection";
 import EmailVerified from "@/components/EmailVerified";
 
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirection automatique si on détecte un hash de récupération de mot de passe
+    if (typeof window !== "undefined" && window.location.hash.includes("type=recovery")) {
+      router.replace("/reset-password" + window.location.hash);
+    }
+  }, [router]);
+
   return (
     <main className={styles.main}>
       <EmailVerified />
@@ -31,3 +44,4 @@ export default function Home() {
     </main>
   );
 }
+
