@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase-client";
+import { Session } from "@supabase/supabase-js";
 import styles from "./reset-password.module.css";
 
 export default function ResetPasswordPage() {
@@ -9,7 +10,7 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -31,8 +32,8 @@ export default function ResetPasswordPage() {
     }
 
     // Tentative de récupération de session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
       setChecking(false);
     });
 
