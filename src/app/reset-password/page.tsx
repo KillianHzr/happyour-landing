@@ -32,7 +32,7 @@ export default function ResetPasswordPage() {
     }
 
     // Tentative de récupération de session
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
       setSession(data.session);
       setChecking(false);
     });
