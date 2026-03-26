@@ -10,11 +10,30 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [session, setSession] = useState<any>(null);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Supabase will automatically recover the session from the URL fragment or code
+    if (!supabase) {
+      setMessage({ type: "error", text: "Configuration Supabase manquante (NEXT_PUBLIC_...)." });
+      setChecking(false);
+      return;
+    }
+
+    // Analyse du hash d'URL pour les erreurs Supabase (type=recovery_expired etc)
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    if (hash.includes("error=access_denied") || hash.includes("error_code=otp_expired")) {
+      setMessage({ 
+        type: "error", 
+        text: "Le lien de réinitialisation est invalide ou a expiré. Merci de refaire une demande depuis l'application." 
+      });
+      setChecking(false);
+      return;
+    }
+
+    // Tentative de récupération de session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setChecking(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -47,7 +66,7 @@ export default function ResetPasswordPage() {
       setPassword("");
       setConfirmPassword("");
       
-      // Optionnel: Déconnecter l'utilisateur après le reset
+      // On déconnecte après succès
       await supabase.auth.signOut();
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || "Une erreur est survenue." });
@@ -55,6 +74,36 @@ export default function ResetPasswordPage() {
       setLoading(false);
     }
   };
+
+  if (checking) {
+    return (
+      <main className={styles.main}>
+        <div className={styles.card}>
+          <p className={styles.subtitle}>Vérification du lien...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!session && message?.type === "error") {
+    return (
+      <main className={styles.main}>
+        <header className={styles.header}>
+          <div className={styles.logo}>[noname]</div>
+          <div className={styles.studio}>by La Source</div>
+        </header>
+        <div className={styles.card}>
+          <h1 className={styles.title}>Lien invalide</h1>
+          <div className={`${styles.message} ${styles.error}`}>
+            {message.text}
+          </div>
+          <p className={styles.subtitle} style={{ marginTop: "1rem" }}>
+            Retourne sur l'application [noname] pour demander un nouveau lien.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   if (!session && !loading && !message) {
     return (
@@ -66,7 +115,7 @@ export default function ResetPasswordPage() {
         <div className={styles.card}>
           <h1 className={styles.title}>Lien invalide</h1>
           <p className={styles.subtitle}>
-            Ce lien de réinitialisation est invalide ou a expiré. Merci de refaire une demande depuis l'application.
+            Ce lien est expiré ou corrompu. Merci de refaire une demande depuis l'application.
           </p>
         </div>
       </main>
