@@ -5,7 +5,7 @@ import Dashboard from "./Dashboard";
 import { fetchAnalyticsData } from "@/lib/analytics";
 
 export const metadata: Metadata = {
-  title: "[noname] — Analytics",
+  title: "HappyOur — Analytics",
   robots: {
     index: false,
     follow: false,

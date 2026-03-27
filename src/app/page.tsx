@@ -35,7 +35,7 @@ export default function Home() {
   if (isRedirecting) {
     return (
       <main className={styles.main} style={{ justifyContent: "center" }}>
-        <div className={styles.logo} style={{ opacity: 0.8 }}>[noname]</div>
+        <div className={styles.logo} style={{ opacity: 0.8 }}>HappyOur</div>
         <p style={{ marginTop: "1rem", opacity: 0.5, fontSize: "0.8rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
           Redirection sécurisée...
         </p>
@@ -56,8 +56,8 @@ export default function Home() {
       )}
 
       <header className={styles.header}>
-        <div className={styles.logo}>[noname]</div>
-        <div className={styles.studio}>by La Source</div>
+        <div className={styles.logo}>HappyOur</div>
+        <div className={styles.studio}>Source Studio</div>
       </header>
 
       <section className={styles.hero}>
@@ -71,7 +71,7 @@ export default function Home() {
       <DownloadSection />
 
       <footer className={styles.footer}>
-        <p>&copy; {new Date().getFullYear()} Studio La Source. Tous droits réservés.</p>
+        <p>&copy; {new Date().getFullYear()} Source Studio. Tous droits réservés.</p>
       </footer>
 
       {/* Background decoration (black/grey only) */}

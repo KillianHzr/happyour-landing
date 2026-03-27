@@ -4,10 +4,10 @@ import styles from "./page.module.css";
 export default function NotFound() {
   return (
     <main className={styles.main}>
-      <header className={styles.header}>
-        <div className={styles.logo}>[noname]</div>
-        <div className={styles.studio}>by La Source</div>
-      </header>
+      <div className={styles.header}>
+        <div className={styles.logo}>HappyOur</div>
+        <div className={styles.studio}>Source Studio</div>
+      </div>
 
       <section className={styles.hero}>
         <div className={styles.badge}>Erreur 404</div>

@@ -90,8 +90,8 @@ export default function ResetPasswordPage() {
     return (
       <main className={styles.main}>
         <header className={styles.header}>
-          <div className={styles.logo}>[noname]</div>
-          <div className={styles.studio}>by La Source</div>
+          <div className={styles.logo}>HappyOur</div>
+          <div className={styles.studio}>Source Studio</div>
         </header>
         <div className={styles.card}>
           <h1 className={styles.title}>Lien invalide</h1>
@@ -99,7 +99,7 @@ export default function ResetPasswordPage() {
             {message.text}
           </div>
           <p className={styles.subtitle} style={{ marginTop: "1rem" }}>
-            Retourne sur l'application [noname] pour demander un nouveau lien.
+            Retourne sur l'application HappyOur pour demander un nouveau lien.
           </p>
         </div>
       </main>
@@ -110,8 +110,8 @@ export default function ResetPasswordPage() {
     return (
       <main className={styles.main}>
         <header className={styles.header}>
-          <div className={styles.logo}>[noname]</div>
-          <div className={styles.studio}>by La Source</div>
+          <div className={styles.logo}>HappyOur</div>
+          <div className={styles.studio}>Source Studio</div>
         </header>
         <div className={styles.card}>
           <h1 className={styles.title}>Lien invalide</h1>
@@ -126,8 +126,8 @@ export default function ResetPasswordPage() {
   return (
     <main className={styles.main}>
       <header className={styles.header}>
-        <div className={styles.logo}>[noname]</div>
-        <div className={styles.studio}>by La Source</div>
+        <div className={styles.logo}>HappyOur</div>
+        <div className={styles.studio}>Source Studio</div>
       </header>
 
       <div className={styles.card}>

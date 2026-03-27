@@ -21,9 +21,9 @@ export default function CodeGate() {
 
   return (
     <main className={styles.gatePage}>
-      <header className={styles.gateHeader}>
-        <div className={styles.logo}>[noname]</div>
-        <div className={styles.studio}>by La Source</div>
+      <header className={styles.header}>
+        <div className={styles.logo}>HappyOur</div>
+        <div className={styles.studio}>Source Studio</div>
       </header>
 
       <div className={styles.gateContainer}>

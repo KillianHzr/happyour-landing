@@ -26,7 +26,7 @@ export default function DownloadSection() {
   const downloadAPK = () => {
     const link = document.createElement("a");
     link.href = APK_URL;
-    link.download = "noname.apk";
+    link.download = "HappyOur.apk";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -112,7 +112,7 @@ export default function DownloadSection() {
                   <div className={styles.step}>
                     <span className={styles.stepNumber}>2</span>
                     <div className={styles.stepContent}>
-                      <p>Rejoignez le programme de test de <strong>[noname]</strong>.</p>
+                      <p>Rejoignez le programme de test de <strong>HappyOur</strong>.</p>
                       <a href="https://testflight.apple.com/join/gvCHSG89" target="_blank" rel="noopener noreferrer" className={styles.link}>Rejoindre sur TestFlight</a>
                     </div>
                   </div>

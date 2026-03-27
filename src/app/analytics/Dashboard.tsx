@@ -71,9 +71,9 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
   return (
     <main className={styles.dashPage}>
       <header className={styles.dashHeader}>
-        <div className={styles.logo}>[noname]</div>
+        <div className={styles.logo}>HappyOur</div>
         <div className={styles.badge}>Analytics Interne</div>
-        <div className={styles.studio}>by La Source</div>
+        <div className={styles.studio}>Source Studio</div>
       </header>
 
       <section className={styles.dashHero}>
@@ -243,7 +243,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
       </div>
 
       <footer className={styles.dashFooter}>
-        <p>© {new Date().getFullYear()} Studio La Source. Données temps réel.</p>
+        <p>© {new Date().getFullYear()} Source Studio. Données temps réel.</p>
       </footer>
 
       <div className={styles.bgGlow1} />

@@ -3,16 +3,16 @@ import styles from "./documentation.module.css";
 import pageStyles from "../page.module.css";
 
 export const metadata: Metadata = {
-  title: "[noname] — Documentation",
-  description: "Documentation de l'application [noname].",
+  title: "HappyOur — Documentation",
+  description: "Documentation de l'application HappyOur.",
 };
 
-export default function DocumentationPage() {
+export default function Documentation() {
   return (
-    <main className={pageStyles.main}>
+    <div className={pageStyles.container}>
       <header className={pageStyles.header}>
-        <div className={pageStyles.logo}>[noname]</div>
-        <div className={pageStyles.studio}>by La Source</div>
+        <div className={pageStyles.logo}>HappyOur</div>
+        <div className={pageStyles.studio}>Source Studio</div>
       </header>
 
       <section className={pageStyles.hero}>
