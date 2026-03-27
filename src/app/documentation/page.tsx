@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function Documentation() {
   return (
-    <div className={pageStyles.container}>
+    <main className={pageStyles.container}>
       <header className={pageStyles.header}>
         <div className={pageStyles.logo}>HappyOur</div>
         <div className={pageStyles.studio}>Source Studio</div>
