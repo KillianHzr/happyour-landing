@@ -78,15 +78,59 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
   const maxDay = Math.max(...dailyDistribution.map((d) => d.count));
 
   const exportToCSV = () => {
-    const headers = ["Username", "Moments", "Reactions", "Score"];
-    const rows = activeMembers.map(m => [m.username, m.moments, m.reactions, m.score]);
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
+    let csvContent = "data:text/csv;charset=utf-8,";
+    
+    // 1. KPIs
+    csvContent += "SECTION: STATISTIQUES GLOBALES\n";
+    csvContent += "Indicateur,Valeur\n";
+    csvContent += `Total Moments,${stats.totalMoments}\n`;
+    csvContent += `Total Utilisateurs,${stats.totalUsers}\n`;
+    csvContent += `Total Groupes,${stats.totalGroups}\n`;
+    csvContent += `Total Reactions,${stats.totalReactions}\n\n`;
+
+    // 2. Types
+    csvContent += "SECTION: REPARTITION PAR TYPE\n";
+    csvContent += "Type,Nombre\n";
+    typeDistribution.forEach(t => {
+      csvContent += `${t.label},${t.count}\n`;
+    });
+    csvContent += "\n";
+
+    // 3. Daily
+    csvContent += "SECTION: DISTRIBUTION JOURNALIERE\n";
+    csvContent += "Jour,Nombre\n";
+    dailyDistribution.forEach(d => {
+      csvContent += `${d.day},${d.count}\n`;
+    });
+    csvContent += "\n";
+
+    // 4. Hourly
+    csvContent += "SECTION: DISTRIBUTION HORAIRE\n";
+    csvContent += "Heure,Nombre\n";
+    hourlyDistribution.forEach(h => {
+      csvContent += `${h.hour},${h.count}\n`;
+    });
+    csvContent += "\n";
+
+    // 5. Users
+    csvContent += "SECTION: ACTIVITE UTILISATEURS\n";
+    csvContent += "Username,Moments,Reactions,Score\n";
+    activeMembers.forEach(m => {
+      csvContent += `${m.username},${m.moments},${m.reactions},${m.score}\n`;
+    });
+    csvContent += "\n";
+
+    // 6. Groups
+    csvContent += "SECTION: PARTICIPATION GROUPES\n";
+    csvContent += "Nom,Membres Posteurs,Total Membres,Taux (%)\n";
+    groupParticipation.forEach(g => {
+      csvContent += `${g.name.replace(/,/g, ' ')},${g.posted},${g.total},${g.rate}\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `happyour_analytics_${new Date().toISOString().slice(0,10)}.csv`);
-    link.style.visibility = "hidden";
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `happyour_full_report_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -96,7 +140,12 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
     <main className={styles.dashPage}>
       <header className={styles.dashHeader}>
         <div className={styles.logo}>HappyOur</div>
-        <div className={styles.badge}>Analytics Interne</div>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <button className={styles.exportBtn} onClick={exportToCSV}>
+            📥 Rapport Complet
+          </button>
+          <div className={styles.badge}>Analytics Interne</div>
+        </div>
         <div className={styles.studio}>Source Studio</div>
       </header>
 
