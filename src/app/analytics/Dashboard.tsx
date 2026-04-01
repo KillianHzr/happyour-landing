@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   BarChart,
   Bar,
@@ -15,8 +16,10 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { useSearchParams } from "next/navigation";
 import type { AnalyticsData } from "@/lib/analytics";
 import styles from "./analytics.module.css";
+import GroupExplorer from "./GroupExplorer";
 
 const GREY = {
   100: "rgba(255,255,255,0.90)",
@@ -59,6 +62,12 @@ function ChartTooltip({ active, payload, label }: TooltipProps) {
 }
 
 export default function Dashboard({ data }: { data: AnalyticsData }) {
+  const searchParams = useSearchParams();
+  const isAdmin = searchParams.get("role") === "adminkillianphoto12!";
+
+  const [visibleMembers, setVisibleMembers] = useState(10);
+  const [showTable, setShowTable] = useState(false);
+
   const {
     stats, momentsByUser, typeDistribution,
     dailyDistribution, hourlyDistribution, activeMembers,
@@ -67,6 +76,21 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
 
   const maxHour = Math.max(...hourlyDistribution.map((h) => h.count));
   const maxDay = Math.max(...dailyDistribution.map((d) => d.count));
+
+  const exportToCSV = () => {
+    const headers = ["Username", "Moments", "Reactions", "Score"];
+    const rows = activeMembers.map(m => [m.username, m.moments, m.reactions, m.score]);
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `happyour_analytics_${new Date().toISOString().slice(0,10)}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <main className={styles.dashPage}>
@@ -79,7 +103,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
       <section className={styles.dashHero}>
         <h1 className={styles.dashTitle}>Dashboard</h1>
         <p className={styles.dashSubtitle}>
-          Vue d'ensemble de l'activité · Accès strictement confidentiel
+          Données filtrées depuis le 30/03/2026 · Accès strictement confidentiel
         </p>
       </section>
 
@@ -225,10 +249,15 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
           </div>
 
           <div className={`${styles.card} glass-effect`}>
-            <p className={styles.cardLabel}>Membres les plus actifs</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <p className={styles.cardLabel} style={{ marginBottom: 0 }}>Membres les plus actifs</p>
+              <button className={styles.exportBtn} onClick={() => setShowTable(true)}>
+                <span>📊</span> Voir Tout
+              </button>
+            </div>
             <div className={styles.rankList}>
               {activeMembers.length === 0 && <Empty />}
-              {activeMembers.map((m, i) => (
+              {activeMembers.slice(0, visibleMembers).map((m, i) => (
                 <div key={m.username} className={styles.rankRow}>
                   <span className={styles.rankPos}>{i < 3 ? MEDALS[i] : `#${i + 1}`}</span>
                   <span className={styles.rankName}>{m.username}</span>
@@ -236,11 +265,67 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                   <span className={styles.rankScore}>{m.score} pts</span>
                 </div>
               ))}
+              {visibleMembers < activeMembers.length && (
+                <button className={styles.loadMoreBtn} onClick={() => setVisibleMembers(prev => prev + 10)}>
+                  Charger plus (+10)
+                </button>
+              )}
             </div>
           </div>
 
         </div>
       </div>
+
+      {isAdmin && (
+        <section className={styles.explorerSection}>
+          <div className={styles.explorerSectionHeader}>
+            <div className={styles.explorerSectionLine} />
+            <span className={styles.explorerSectionLabel}>Administration</span>
+            <div className={styles.explorerSectionLine} />
+          </div>
+          <GroupExplorer groups={data.groups} />
+        </section>
+      )}
+
+      {showTable && (
+        <div className={styles.tableModalOverlay} onClick={() => setShowTable(false)}>
+          <div className={styles.tableModalContainer} onClick={e => e.stopPropagation()}>
+            <div className={styles.tableModalHeader}>
+              <h2 className={styles.tableModalTitle}>Toutes les données utilisateurs</h2>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button className={styles.exportBtn} onClick={exportToCSV}>
+                  📥 Exporter CSV
+                </button>
+                <button className={styles.tableModalClose} onClick={() => setShowTable(false)}>×</button>
+              </div>
+            </div>
+            <div className={styles.tableScroll}>
+              <table className={styles.dataTable}>
+                <thead>
+                  <tr>
+                    <th>Rang</th>
+                    <th>Pseudo</th>
+                    <th>Moments</th>
+                    <th>Réactions</th>
+                    <th>Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeMembers.map((m, i) => (
+                    <tr key={m.username}>
+                      <td>{i + 1}</td>
+                      <td><strong>{m.username}</strong></td>
+                      <td>{m.moments}</td>
+                      <td>{m.reactions}</td>
+                      <td>{m.score}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className={styles.dashFooter}>
         <p>© {new Date().getFullYear()} Source Studio. Données temps réel.</p>

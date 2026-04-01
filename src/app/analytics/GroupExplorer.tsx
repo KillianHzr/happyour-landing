@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { GroupItem } from "@/lib/analytics";
 import styles from "./analytics.module.css";
 
@@ -28,6 +28,7 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
   const [loading, setLoading] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState<string[] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -53,6 +54,7 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
     setOpen(false);
     setQuery(g.name);
     setSelectedDate(null);
+    setSelectedWeek(null);
     setLoading(true);
     setCurrentMonth(new Date());
 
@@ -69,34 +71,66 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
   }, []);
 
   // Photos groupées par date
-  const photosByDate = photos.reduce<Record<string, Photo[]>>((acc, p) => {
-    (acc[p.date] ??= []).push(p);
-    return acc;
-  }, {});
+  const photosByDate = useMemo(() => {
+    return photos.reduce<Record<string, Photo[]>>((acc, p) => {
+      (acc[p.date] ??= []).push(p);
+      return acc;
+    }, {});
+  }, [photos]);
 
-  // Jours du mois courant
-  function getDaysInMonth(year: number, month: number) {
-    const days: (Date | null)[] = [];
+  // Jours du mois courant groupés par semaine
+  const weeks = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const result: (Date | null)[][] = [];
+    
     const first = new Date(year, month, 1);
-    // Lundi = 0 … Dimanche = 6
     let startDow = (first.getDay() + 6) % 7;
-    for (let i = 0; i < startDow; i++) days.push(null);
     const total = new Date(year, month + 1, 0).getDate();
-    for (let d = 1; d <= total; d++) days.push(new Date(year, month, d));
-    return days;
-  }
+    
+    let currentWeek: (Date | null)[] = [];
+    for (let i = 0; i < startDow; i++) currentWeek.push(null);
+    
+    for (let d = 1; d <= total; d++) {
+      currentWeek.push(new Date(year, month, d));
+      if (currentWeek.length === 7) {
+        result.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) currentWeek.push(null);
+      result.push(currentWeek);
+    }
+    return result;
+  }, [currentMonth]);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
-  const days = getDaysInMonth(year, month);
 
-  const photosOfDay = selectedDate ? (photosByDate[selectedDate] ?? []) : [];
+  const getPhotosOfDates = (dates: string[]) => {
+    return photos
+      .filter((p) => dates.includes(p.date))
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  };
+
+  const displayedPhotos = useMemo(() => {
+    if (selectedDate) return photosByDate[selectedDate] ?? [];
+    if (selectedWeek) return getPhotosOfDates(selectedWeek);
+    return [];
+  }, [selectedDate, selectedWeek, photosByDate, photos]);
 
   function closeModal() {
     setSelected(null);
     setPhotos([]);
     setSelectedDate(null);
+    setSelectedWeek(null);
     setQuery("");
+  }
+
+  function handleBack() {
+    setSelectedDate(null);
+    setSelectedWeek(null);
   }
 
   return (
@@ -145,18 +179,12 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
             className={styles.phoneFrame}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Notch */}
             <div className={styles.phoneNotch} />
 
-            {/* Phone screen */}
             <div className={styles.phoneScreen}>
-              {/* Header */}
               <div className={styles.phoneHeader}>
-                {selectedDate ? (
-                  <button
-                    className={styles.phoneBack}
-                    onClick={() => setSelectedDate(null)}
-                  >
+                {selectedDate || selectedWeek ? (
+                  <button className={styles.phoneBack} onClick={handleBack}>
                     ←
                   </button>
                 ) : (
@@ -170,29 +198,42 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
 
               {loading ? (
                 <div className={styles.phoneLoading}>Chargement…</div>
-              ) : selectedDate ? (
-                /* ── Day view ── */
+              ) : selectedDate || selectedWeek ? (
+                /* ── Flow view (Day or Week) ── */
                 <div className={styles.dayView}>
                   <p className={styles.dayViewTitle}>
-                    {new Date(selectedDate + "T00:00:00").toLocaleDateString(
-                      "fr-FR",
-                      { weekday: "long", day: "numeric", month: "long" }
+                    {selectedDate ? (
+                      new Date(selectedDate + "T00:00:00").toLocaleDateString(
+                        "fr-FR",
+                        { weekday: "long", day: "numeric", month: "long" }
+                      )
+                    ) : (
+                      "Flux de la semaine"
                     )}
                     <span className={styles.dayCount}>
-                      {" "}· {photosOfDay.length} moment
-                      {photosOfDay.length > 1 ? "s" : ""}
+                      {" "}· {displayedPhotos.length} moment
+                      {displayedPhotos.length > 1 ? "s" : ""}
                     </span>
                   </p>
                   <div className={styles.dayGrid}>
-                    {photosOfDay.map((p) => (
-                      <DayPhoto key={p.id} photo={p} />
-                    ))}
+                    {displayedPhotos.map((p, i) => {
+                      const showDateLabel = selectedWeek && (i === 0 || displayedPhotos[i-1].date !== p.date);
+                      return (
+                        <div key={p.id}>
+                          {showDateLabel && (
+                            <div className={styles.momentDateLabel}>
+                              {new Date(p.date + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
+                            </div>
+                          )}
+                          <MomentItem photo={p} />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
                 /* ── Calendar view ── */
                 <div className={styles.calendarView}>
-                  {/* Month nav */}
                   <div className={styles.calMonthNav}>
                     <button
                       className={styles.calNavBtn}
@@ -215,7 +256,6 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
                     </button>
                   </div>
 
-                  {/* Day headers */}
                   <div className={styles.calGrid}>
                     {DAYS_FR.map((d, i) => (
                       <div key={i} className={styles.calDayHeader}>
@@ -223,30 +263,45 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
                       </div>
                     ))}
 
-                    {/* Day cells */}
-                    {days.map((day, i) => {
-                      if (!day)
-                        return <div key={`empty-${i}`} />;
-                      const dateStr = day.toISOString().slice(0, 10);
-                      const count = photosByDate[dateStr]?.length ?? 0;
-                      const isToday =
-                        dateStr === new Date().toISOString().slice(0, 10);
+                    {weeks.map((week, weekIdx) => {
+                      const weekDates = week.filter(d => d !== null).map(d => d!.toISOString().slice(0, 10));
+                      const weekCount = weekDates.reduce((sum, d) => sum + (photosByDate[d]?.length ?? 0), 0);
+                      
                       return (
-                        <button
-                          key={dateStr}
-                          className={`${styles.calDay} ${
-                            count > 0 ? styles.calDayActive : ""
-                          } ${isToday ? styles.calDayToday : ""}`}
-                          onClick={() =>
-                            count > 0 && setSelectedDate(dateStr)
-                          }
-                          disabled={count === 0}
-                        >
-                          <span>{day.getDate()}</span>
-                          {count > 0 && (
-                            <span className={styles.calDot}>{count}</span>
+                        <div key={`week-${weekIdx}`} className={styles.calWeekRow}>
+                          {weekCount > 0 && (
+                            <button 
+                              className={styles.calWeekBtn}
+                              onClick={() => setSelectedWeek(weekDates)}
+                            >
+                              Voir la semaine ({weekCount})
+                            </button>
                           )}
-                        </button>
+                          {week.map((day, i) => {
+                            if (!day) return <div key={`empty-${weekIdx}-${i}`} />;
+                            const dateStr = day.toISOString().slice(0, 10);
+                            const count = photosByDate[dateStr]?.length ?? 0;
+                            const isToday =
+                              dateStr === new Date().toISOString().slice(0, 10);
+                            return (
+                              <button
+                                key={dateStr}
+                                className={`${styles.calDay} ${
+                                  count > 0 ? styles.calDayActive : ""
+                                } ${isToday ? styles.calDayToday : ""}`}
+                                onClick={() =>
+                                  count > 0 && setSelectedDate(dateStr)
+                                }
+                                disabled={count === 0}
+                              >
+                                <span>{day.getDate()}</span>
+                                {count > 0 && (
+                                  <span className={styles.calDot}>{count}</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
                       );
                     })}
                   </div>
@@ -258,7 +313,6 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
               )}
             </div>
 
-            {/* Home bar */}
             <div className={styles.phoneHomeBar} />
           </div>
         </div>
@@ -267,47 +321,62 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
   );
 }
 
-function DayPhoto({ photo }: { photo: Photo }) {
+function MomentItem({ photo }: { photo: Photo }) {
   const [err, setErr] = useState(false);
+  const time = new Date(photo.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
-  if (photo.type === "text") {
-    return (
-      <div className={styles.photoText}>
-        <p>{photo.note || "—"}</p>
-        <span className={styles.photoUser}>@{photo.username}</span>
-      </div>
-    );
-  }
+  const renderMedia = () => {
+    if (photo.type === "text") {
+      return (
+        <div className={styles.photoText}>
+          <p>{photo.note || "—"}</p>
+        </div>
+      );
+    }
 
-  if (photo.type === "video") {
+    if (photo.type === "video") {
+      return (
+        <div className={styles.photoWrap}>
+          <video
+            src={photo.url ?? ""}
+            className={styles.photoMedia}
+            controls
+            playsInline
+            preload="metadata"
+          />
+        </div>
+      );
+    }
+
     return (
       <div className={styles.photoWrap}>
-        <video
-          src={photo.url ?? ""}
-          className={styles.photoMedia}
-          controls
-          playsInline
-          preload="metadata"
-        />
-        <span className={styles.photoUser}>@{photo.username}</span>
+        {!err ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photo.url ?? ""}
+            alt=""
+            className={styles.photoMedia}
+            onError={() => setErr(true)}
+          />
+        ) : (
+          <div className={styles.photoErr}>Image indisponible</div>
+        )}
       </div>
     );
-  }
+  };
 
   return (
-    <div className={styles.photoWrap}>
-      {!err ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={photo.url ?? ""}
-          alt=""
-          className={styles.photoMedia}
-          onError={() => setErr(true)}
-        />
-      ) : (
-        <div className={styles.photoErr}>Image indisponible</div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      <div className={styles.momentHeader}>
+        <span className={styles.momentUser}>@{photo.username}</span>
+        <span className={styles.momentTime}>{time}</span>
+      </div>
+      {renderMedia()}
+      {photo.type !== "text" && photo.note && (
+         <div style={{ padding: "8px 4px 0", fontSize: "12px", color: "#ddd", fontStyle: "italic" }}>
+           {photo.note}
+         </div>
       )}
-      <span className={styles.photoUser}>@{photo.username}</span>
     </div>
   );
 }

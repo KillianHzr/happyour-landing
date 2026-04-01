@@ -76,31 +76,43 @@ function inferType(imagePath: string | null, note: string | null): string {
 }
 
 export async function fetchAnalyticsData(): Promise<AnalyticsData> {
+  const START_DATE = "2026-03-30T00:00:00Z";
+
   // La table s'appelle "photos" (pas "moments").
   // Les réactions référencent "photo_id" (pas "moment_id").
   const [photosRes, profilesRes, groupMembersRes, groupsRes, reactionsRes] =
     await Promise.all([
       supabase
         .from("photos")
-        .select("id, user_id, group_id, image_path, note, created_at"),
-      supabase.from("profiles").select("id, username"),
+        .select("id, user_id, group_id, image_path, note, created_at")
+        .gte("created_at", START_DATE),
+      supabase
+        .from("profiles")
+        .select("id, username, created_at")
+        .not("username", "ilike", "%test%"),
       supabase.from("group_members").select("group_id, user_id"),
       supabase.from("groups").select("id, name"),
       supabase
         .from("reactions")
-        .select("photo_id, user_id, type, created_at"),
+        .select("photo_id, user_id, type, created_at")
+        .gte("created_at", START_DATE),
     ]);
 
-  const photos = photosRes.data ?? [];
+  const rawPhotos = photosRes.data ?? [];
   const profiles = profilesRes.data ?? [];
   const groupMembers = groupMembersRes.data ?? [];
   const groups = groupsRes.data ?? [];
-  const reactions = reactionsRes.data ?? [];
+  const rawReactions = reactionsRes.data ?? [];
 
-  // Map user id → username
+  // Map user id → username and valid users set
   const userMap = new Map(
     profiles.map((p) => [p.id, p.username ?? `user_${p.id.slice(0, 6)}`])
   );
+  const validUserIds = new Set(profiles.map((p) => p.id));
+
+  // Filter photos and reactions to only include those from valid (non-test) users
+  const photos = rawPhotos.filter((p) => validUserIds.has(p.user_id));
+  const reactions = rawReactions.filter((r) => validUserIds.has(r.user_id));
 
   // 1. Posts par utilisateur
   const momentsByUserMap = new Map<string, number>();
@@ -153,28 +165,26 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   for (const r of reactions) {
     reactionsByUser.set(r.user_id, (reactionsByUser.get(r.user_id) ?? 0) + 1);
   }
-  const allUsers = new Set([
-    ...momentsByUserMap.keys(),
-    ...reactionsByUser.keys(),
-  ]);
-  const activeMembers: ActiveMember[] = [...allUsers]
-    .map((uid) => {
+  
+  // Inclure TOUS les profils valides, même ceux sans activité
+  const activeMembers: ActiveMember[] = profiles
+    .map((p) => {
+      const uid = p.id;
       const mCount = momentsByUserMap.get(uid) ?? 0;
       const rCount = reactionsByUser.get(uid) ?? 0;
       return {
-        username: userMap.get(uid) ?? uid.slice(0, 8),
+        username: p.username ?? `user_${uid.slice(0, 6)}`,
         moments: mCount,
         reactions: rCount,
         score: mCount * 3 + rCount,
       };
     })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10);
+    .sort((a, b) => b.score - a.score);
 
   // 5. Taux de participation par groupe
   const groupParticipation: GroupParticipation[] = groups
     .map((g) => {
-      const members = groupMembers.filter((gm) => gm.group_id === g.id);
+      const members = groupMembers.filter((gm) => gm.group_id === g.id && validUserIds.has(gm.user_id));
       const posters = new Set(
         photos.filter((p) => p.group_id === g.id).map((p) => p.user_id)
       );

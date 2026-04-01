@@ -246,6 +246,47 @@
   border: 1px solid rgba(255,255,255,0.2);
 }
 
+.calWeekRow {
+  display: contents;
+}
+
+.calWeekBtn {
+  grid-column: span 7;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  margin: 12px 0 6px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.calWeekBtn::before {
+  content: '📅';
+  font-size: 12px;
+}
+
+.calWeekBtn:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.3);
+  transform: translateY(-1px);
+}
+
+.calWeekBtnActive {
+  background: #fff;
+  color: #000;
+}
+
 .calDot {
   font-size: 9px;
   font-weight: 700;
@@ -273,24 +314,61 @@
   font-size: 12px;
   font-weight: 600;
   color: #888;
-  padding: 6px 14px 8px;
+  padding: 12px 14px 8px;
   text-transform: capitalize;
   flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .dayCount {
   color: #555;
   font-weight: 400;
+  font-size: 10px;
 }
 
 .dayGrid {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 10px 10px;
+  padding: 0 10px 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 20px;
+}
+
+/* Moment labels */
+.momentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  padding: 0 4px;
+}
+
+.momentTime {
+  font-size: 10px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+}
+
+.momentUser {
+  font-size: 11px;
+  font-weight: 600;
+  color: #aaa;
+}
+
+.momentDateLabel {
+  font-size: 10px;
+  font-weight: 800;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0 5px;
+  padding: 0 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
 }
 
 /* Photo / Video / Text cards */
@@ -819,6 +897,138 @@
   font-size: 0.9rem;
   text-align: center;
   padding: 2rem 0;
+}
+
+/* NEW STYLES */
+.loadMoreBtn {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: var(--white);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.loadMoreBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.exportBtn {
+  padding: 0.6rem 1.2rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--white);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.exportBtn:hover {
+  background: var(--white);
+  color: var(--background);
+}
+
+.tableModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 40px;
+}
+
+.tableModalContainer {
+  width: 100%;
+  max-width: 1200px;
+  max-height: 85vh;
+  background: #0a0a0a;
+  border-radius: 24px;
+  border: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.8);
+}
+
+.tableModalHeader {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tableModalTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.tableModalClose {
+  font-size: 24px;
+  color: #555;
+  cursor: pointer;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+}
+
+.tableModalClose:hover { color: #fff; }
+
+.tableScroll {
+  flex: 1;
+  overflow: auto;
+  padding: 0 2rem 2rem;
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  color: #ddd;
+}
+
+.dataTable th {
+  position: sticky;
+  top: 0;
+  background: #0a0a0a;
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--grey-text);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  z-index: 1;
+}
+
+.dataTable td {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.dataTable tr:hover td {
+  background: rgba(255,255,255,0.02);
 }
 
 /* Footer */
