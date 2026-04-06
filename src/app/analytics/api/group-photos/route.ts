@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabase-server";
 
-const STORAGE_BASE = `${process.env.SUPABASE_URL}/storage/v1/object/public/moments`;
+const STORAGE_BASE = "https://pub-60472f883f3e43038a8344e2373eb42b.r2.dev";
 
-function getMediaUrl(imagePath: string | null): string | null {
+function getMediaUrl(groupId: string, imagePath: string | null): string | null {
   if (!imagePath || imagePath === "text_mode") return null;
   if (imagePath.startsWith("http")) return imagePath;
-  return `${STORAGE_BASE}/${imagePath}`;
+  return `${STORAGE_BASE}/${groupId}/${imagePath}`;
 }
 
 function inferType(imagePath: string | null, note: string | null): "photo" | "video" | "text" {
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
         username: userMap.get(p.user_id) ?? p.user_id.slice(0, 8),
         type,
         note: p.note ?? null,
-        url: getMediaUrl(p.image_path),
+        url: getMediaUrl(groupId, p.image_path),
         image_path: p.image_path,
         created_at: p.created_at,
         date: (p.created_at as string).slice(0, 10),
