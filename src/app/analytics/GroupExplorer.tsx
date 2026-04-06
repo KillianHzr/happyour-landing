@@ -10,6 +10,7 @@ interface Photo {
   type: "photo" | "video" | "text";
   note: string | null;
   url: string | null;
+  image_path?: string | null;
   created_at: string;
   date: string;
 }
@@ -359,7 +360,20 @@ function MomentItem({ photo }: { photo: Photo }) {
             onError={() => setErr(true)}
           />
         ) : (
-          <div className={styles.photoErr}>Image indisponible</div>
+          <div className={styles.photoErr} style={{ flexDirection: 'column', gap: '8px', padding: '20px', textAlign: 'center' }}>
+            <span>Image indisponible</span>
+            <span style={{ fontSize: '9px', opacity: 0.5, wordBreak: 'break-all' }}>
+              {photo.image_path?.split('/').pop()}
+            </span>
+            <a 
+              href={photo.url ?? ""} 
+              target="_blank" 
+              rel="noreferrer"
+              style={{ fontSize: '10px', color: '#fff', textDecoration: 'underline' }}
+            >
+              Ouvrir en direct
+            </a>
+          </div>
         )}
       </div>
     );

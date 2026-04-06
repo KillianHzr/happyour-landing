@@ -10,12 +10,10 @@ function getMediaUrl(imagePath: string | null): string | null {
   return `${STORAGE_BASE}/${imagePath}`;
 }
 
-function inferType(imagePath: string | null): "photo" | "video" | "text" {
+function inferType(imagePath: string | null, note: string | null): "photo" | "video" | "text" {
   if (!imagePath || imagePath === "text_mode") return "text";
-  const path = imagePath.toLowerCase();
-  if (path.endsWith(".mp4") || path.endsWith(".mov") || path.endsWith(".avi") || path.endsWith(".webm") || path.endsWith(".mkv")) {
-    return "video";
-  }
+  const ext = imagePath.split(".").pop()?.toLowerCase() ?? "";
+  if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "video";
   return "photo";
 }
 
@@ -56,7 +54,7 @@ export async function GET(req: NextRequest) {
   const photos = (photosRes.data ?? [])
     .filter((p) => validUserIds.has(p.user_id))
     .map((p) => {
-      const type = inferType(p.image_path);
+      const type = inferType(p.image_path, p.note);
       return {
         id: p.id,
         user_id: p.user_id,
@@ -64,6 +62,7 @@ export async function GET(req: NextRequest) {
         type,
         note: p.note ?? null,
         url: getMediaUrl(p.image_path),
+        image_path: p.image_path,
         created_at: p.created_at,
         date: (p.created_at as string).slice(0, 10),
       };
