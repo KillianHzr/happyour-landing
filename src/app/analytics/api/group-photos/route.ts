@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabase-server";
 
-const STORAGE_BASE = "https://pub-60472f883f3e43038a8344e2373eb42b.r2.dev";
+const STORAGE_BASE = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || "https://pub-c3c80a82b60448dba090aef503e3931b.r2.dev";
 
 function getMediaUrl(groupId: string, imagePath: string | null): string | null {
   if (!imagePath || imagePath === "text_mode") return null;
