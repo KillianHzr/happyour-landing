@@ -10,6 +10,7 @@ interface Photo {
   type: "photo" | "video" | "text";
   note: string | null;
   url: string | null;
+  fallback_url?: string | null;
   image_path?: string | null;
   created_at: string;
   date: string;
@@ -323,8 +324,11 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
 }
 
 function MomentItem({ photo }: { photo: Photo }) {
-  const [err, setErr] = useState(false);
+  const [errR2, setErrR2] = useState(false);
+  const [errFallback, setErrFallback] = useState(false);
   const time = new Date(photo.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
+  const activeSrc = !errR2 ? (photo.url ?? "") : (photo.fallback_url ?? "");
 
   const renderMedia = () => {
     if (photo.type === "text") {
@@ -339,7 +343,7 @@ function MomentItem({ photo }: { photo: Photo }) {
       return (
         <div className={styles.photoWrap}>
           <video
-            src={photo.url ?? ""}
+            src={activeSrc}
             className={styles.photoMedia}
             controls
             playsInline
@@ -349,15 +353,20 @@ function MomentItem({ photo }: { photo: Photo }) {
       );
     }
 
+    const bothFailed = errR2 && (errFallback || !photo.fallback_url);
+
     return (
       <div className={styles.photoWrap}>
-        {!err ? (
+        {!bothFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={photo.url ?? ""}
+            src={activeSrc}
             alt=""
             className={styles.photoMedia}
-            onError={() => setErr(true)}
+            onError={() => {
+              if (!errR2) setErrR2(true);
+              else setErrFallback(true);
+            }}
           />
         ) : (
           <div className={styles.photoErr} style={{ flexDirection: 'column', gap: '8px', padding: '20px', textAlign: 'center' }}>
@@ -365,14 +374,6 @@ function MomentItem({ photo }: { photo: Photo }) {
             <span style={{ fontSize: '9px', opacity: 0.5, wordBreak: 'break-all' }}>
               {photo.image_path?.split('/').pop()}
             </span>
-            <a 
-              href={photo.url ?? ""} 
-              target="_blank" 
-              rel="noreferrer"
-              style={{ fontSize: '10px', color: '#fff', textDecoration: 'underline' }}
-            >
-              Ouvrir en direct
-            </a>
           </div>
         )}
       </div>

@@ -45,6 +45,11 @@ export interface GroupItem {
   name: string;
 }
 
+export interface UserItem {
+  id: string;
+  username: string;
+}
+
 export interface AnalyticsData {
   momentsByUser: MomentsByUser[];
   typeDistribution: TypeDistribution[];
@@ -54,6 +59,7 @@ export interface AnalyticsData {
   groupParticipation: GroupParticipation[];
   momentTimeline: TimelinePoint[];
   groups: GroupItem[];
+  users: UserItem[];
   stats: {
     totalMoments: number;
     totalUsers: number;
@@ -222,6 +228,9 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       id: g.id,
       name: g.name ?? `Groupe ${g.id.slice(0, 6)}`,
     })),
+    users: profiles
+      .map((p) => ({ id: p.id, username: p.username ?? `user_${p.id.slice(0, 6)}` }))
+      .sort((a, b) => a.username.localeCompare(b.username)),
     stats: {
       totalMoments: photos.length,
       totalUsers: profiles.length,
