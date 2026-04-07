@@ -24,17 +24,8 @@ function inferType(imagePath: string | null): "photo" | "video" | "text" {
   return "photo";
 }
 
-// Returns the ISO date of the Monday of a given date's week
-function getWeekStart(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
-}
 
 export async function GET(req: NextRequest) {
-  const START_DATE = "2026-03-30T00:00:00Z";
   const cookieStore = await cookies();
   if (cookieStore.get("analytics_auth")?.value !== "authorized") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -49,8 +40,7 @@ export async function GET(req: NextRequest) {
     .from("photos")
     .select("id, image_path, note, created_at, group_id, groups:group_id(name)")
     .eq("user_id", userId)
-    .gte("created_at", START_DATE)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (photosRes.error) {
     return NextResponse.json({ error: photosRes.error.message }, { status: 500 });
@@ -68,7 +58,6 @@ export async function GET(req: NextRequest) {
       image_path: p.image_path,
       created_at: p.created_at,
       date,
-      week_start: getWeekStart(date),
       group_name: (p.groups as any)?.name ?? null,
     };
   });

@@ -790,6 +790,25 @@
   color: var(--white);
 }
 
+.tooltipTopUsers {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tooltipTopUsersTitle {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--grey-text);
+  margin-bottom: 4px;
+}
+
+.tooltipUser {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 2px;
+}
+
 /* Ranking */
 .rankList {
   display: flex;

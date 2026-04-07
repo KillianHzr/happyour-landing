@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { UserItem } from "@/lib/analytics";
 import styles from "./analytics.module.css";
 
@@ -13,22 +13,7 @@ interface Photo {
   image_path?: string | null;
   created_at: string;
   date: string;
-  week_start: string;
   group_name: string | null;
-}
-
-interface Week {
-  start: string; // YYYY-MM-DD (Monday)
-  label: string; // "7 avr – 13 avr"
-  photos: Photo[];
-}
-
-function formatWeekRange(weekStart: string): string {
-  const start = new Date(weekStart + "T00:00:00");
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
-  return `${start.toLocaleDateString("fr-FR", opts)} – ${end.toLocaleDateString("fr-FR", opts)}`;
 }
 
 export default function UserExplorer({ users }: { users: UserItem[] }) {
@@ -37,8 +22,7 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
   const [selected, setSelected] = useState<UserItem | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [visible, setVisible] = useState(10);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const filtered = query.trim()
@@ -59,7 +43,7 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
     setSelected(u);
     setOpen(false);
     setQuery(u.username);
-    setSelectedWeek(null);
+    setVisible(10);
     setLoading(true);
 
     const res = await fetch(`/analytics/api/user-photos?userId=${u.id}`);
@@ -68,32 +52,14 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
     setLoading(false);
   }, []);
 
-  // Group photos by week
-  const weeks = useMemo((): Week[] => {
-    const map = new Map<string, Photo[]>();
-    for (const p of photos) {
-      (map.get(p.week_start) ?? map.set(p.week_start, []).get(p.week_start)!).push(p);
-    }
-    return [...map.entries()]
-      .sort((a, b) => b[0].localeCompare(a[0])) // most recent first
-      .map(([start, weekPhotos]) => ({
-        start,
-        label: formatWeekRange(start),
-        photos: weekPhotos.sort((a, b) => a.created_at.localeCompare(b.created_at)),
-      }));
-  }, [photos]);
-
-  const weekPhotos = useMemo(
-    () => weeks.find((w) => w.start === selectedWeek)?.photos ?? [],
-    [weeks, selectedWeek]
-  );
-
   function closeModal() {
     setSelected(null);
     setPhotos([]);
-    setSelectedWeek(null);
+    setVisible(10);
     setQuery("");
   }
+
+  const displayed = photos.slice(0, visible);
 
   return (
     <div className={`${styles.cardFull} ${styles.card} glass-effect`}>
@@ -101,7 +67,6 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
 
       <div className={styles.explorerSearch} ref={wrapRef}>
         <input
-          ref={inputRef}
           className={styles.input}
           style={{ textAlign: "left", letterSpacing: 0 }}
           placeholder="Pseudo…"
@@ -132,26 +97,27 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
             <div className={styles.phoneNotch} />
             <div className={styles.phoneScreen}>
               <div className={styles.phoneHeader}>
-                {selectedWeek ? (
-                  <button className={styles.phoneBack} onClick={() => setSelectedWeek(null)}>←</button>
-                ) : (
-                  <div style={{ width: 24 }} />
-                )}
+                <div style={{ width: 24 }} />
                 <span className={styles.phoneGroupName}>@{selected.username}</span>
                 <button className={styles.phoneClose} onClick={closeModal}>×</button>
               </div>
 
               {loading ? (
                 <div className={styles.phoneLoading}>Chargement…</div>
-              ) : selectedWeek ? (
-                /* ── Week detail view ── */
+              ) : (
                 <div className={styles.dayView}>
                   <p className={styles.dayViewTitle}>
-                    {weeks.find((w) => w.start === selectedWeek)?.label}
-                    <span className={styles.dayCount}> · {weekPhotos.length} moment{weekPhotos.length > 1 ? "s" : ""}</span>
+                    {photos.length} moment{photos.length !== 1 ? "s" : ""} au total
                   </p>
+
+                  {photos.length === 0 && (
+                    <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, padding: "12px 0" }}>
+                      Aucun moment
+                    </p>
+                  )}
+
                   <div className={styles.dayGrid}>
-                    {weekPhotos.map((p) => (
+                    {displayed.map((p) => (
                       <div key={p.id}>
                         {p.group_name && (
                           <div className={styles.momentDateLabel}>{p.group_name}</div>
@@ -160,44 +126,25 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
                       </div>
                     ))}
                   </div>
-                </div>
-              ) : (
-                /* ── Week list view ── */
-                <div className={styles.dayView}>
-                  <p className={styles.dayViewTitle}>
-                    {photos.length} moment{photos.length !== 1 ? "s" : ""} au total
-                  </p>
-                  {weeks.length === 0 && (
-                    <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, padding: "12px 0" }}>
-                      Aucun moment depuis le 30/03/2026
-                    </p>
+
+                  {visible < photos.length && (
+                    <button
+                      onClick={() => setVisible((v) => v + 10)}
+                      style={{
+                        marginTop: 12,
+                        width: "100%",
+                        padding: "10px 0",
+                        borderRadius: 10,
+                        background: "rgba(255,255,255,0.08)",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        color: "#fff",
+                        fontSize: 13,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Voir plus ({photos.length - visible} restants)
+                    </button>
                   )}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {weeks.map((w) => (
-                      <button
-                        key={w.start}
-                        onClick={() => setSelectedWeek(w.start)}
-                        className={styles.calDay}
-                        style={{
-                          width: "100%",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "10px 14px",
-                          borderRadius: 12,
-                          background: "rgba(255,255,255,0.07)",
-                          border: "1px solid rgba(255,255,255,0.1)",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                      >
-                        <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{w.label}</span>
-                        <span className={styles.calDot} style={{ position: "static", fontSize: 11 }}>
-                          {w.photos.length}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
                 </div>
               )}
             </div>
@@ -212,7 +159,9 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
 function MomentItem({ photo }: { photo: Photo }) {
   const [errR2, setErrR2] = useState(false);
   const [errFallback, setErrFallback] = useState(false);
-  const time = new Date(photo.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const dt = new Date(photo.created_at);
+  const dateLabel = dt.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  const time = dt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   const activeSrc = !errR2 ? (photo.url ?? "") : (photo.fallback_url ?? "");
 
   const renderMedia = () => {
@@ -251,7 +200,7 @@ function MomentItem({ photo }: { photo: Photo }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div className={styles.momentHeader}>
-        <span className={styles.momentTime}>{time}</span>
+        <span className={styles.momentTime}>{dateLabel} · {time}</span>
       </div>
       {renderMedia()}
       {photo.type !== "text" && photo.note && (

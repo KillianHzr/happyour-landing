@@ -38,6 +38,7 @@ export interface GroupParticipation {
 export interface TimelinePoint {
   date: string;
   count: number;
+  topUsers?: { username: string; count: number }[];
 }
 
 export interface GroupItem {
@@ -207,14 +208,26 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     .sort((a, b) => b.rate - a.rate);
 
   // 6. Évolution dans le temps
-  const timelineMap = new Map<string, number>();
+  const timelineMap = new Map<string, Map<string, number>>();
   for (const p of photos) {
     const date = (p.created_at as string).slice(0, 10);
-    timelineMap.set(date, (timelineMap.get(date) ?? 0) + 1);
+    if (!timelineMap.has(date)) timelineMap.set(date, new Map());
+    const dayUsers = timelineMap.get(date)!;
+    dayUsers.set(p.user_id, (dayUsers.get(p.user_id) ?? 0) + 1);
   }
   const momentTimeline: TimelinePoint[] = [...timelineMap.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([date, count]) => ({ date, count }));
+    .map(([date, dayUsers]) => {
+      const totalCount = [...dayUsers.values()].reduce((a, b) => a + b, 0);
+      const topUsers = [...dayUsers.entries()]
+        .map(([uid, count]) => ({
+          username: userMap.get(uid) ?? uid.slice(0, 8),
+          count,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+      return { date, count: totalCount, topUsers };
+    });
 
   return {
     momentsByUser,

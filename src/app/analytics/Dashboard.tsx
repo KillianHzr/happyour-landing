@@ -50,6 +50,9 @@ interface TooltipProps {
 
 function ChartTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null;
+  const data = payload[0].payload;
+  const topUsers = data.topUsers as { username: string; count: number }[] | undefined;
+
   return (
     <div className={styles.tooltip}>
       {label && <p className={styles.tooltipLabel}>{label}</p>}
@@ -58,6 +61,16 @@ function ChartTooltip({ active, payload, label }: TooltipProps) {
           {entry.name}: <strong>{entry.value}</strong>
         </p>
       ))}
+      {topUsers && topUsers.length > 0 && (
+        <div className={styles.tooltipTopUsers}>
+          <p className={styles.tooltipTopUsersTitle}>Top contributeurs :</p>
+          {topUsers.map((u, i) => (
+            <p key={i} className={styles.tooltipUser}>
+              {u.username} : <strong>{u.count}</strong>
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
