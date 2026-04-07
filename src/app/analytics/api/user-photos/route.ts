@@ -5,10 +5,10 @@ import { supabase } from "@/lib/supabase-server";
 const STORAGE_BASE = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || "https://pub-c3c80a82b60448dba090aef503e3931b.r2.dev";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 
-function getMediaUrl(imagePath: string | null): string | null {
+function getMediaUrl(groupId: string, imagePath: string | null): string | null {
   if (!imagePath || imagePath === "text_mode") return null;
   if (imagePath.startsWith("http")) return imagePath;
-  return `${STORAGE_BASE}/${imagePath}`;
+  return `${STORAGE_BASE}/${groupId}/${imagePath}`;
 }
 
 function getFallbackUrl(imagePath: string | null): string | null {
@@ -17,7 +17,7 @@ function getFallbackUrl(imagePath: string | null): string | null {
   return `${SUPABASE_URL}/storage/v1/object/public/moments/${imagePath}`;
 }
 
-function inferType(imagePath: string | null): "photo" | "video" | "text" {
+function inferType(imagePath: string | null, note: string | null): "photo" | "video" | "text" {
   if (!imagePath || imagePath === "text_mode") return "text";
   const ext = imagePath.split(".").pop()?.toLowerCase() ?? "";
   if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "video";
@@ -26,6 +26,7 @@ function inferType(imagePath: string | null): "photo" | "video" | "text" {
 
 
 export async function GET(req: NextRequest) {
+  const START_DATE = "2026-03-30T00:00:00Z";
   const cookieStore = await cookies();
   if (cookieStore.get("analytics_auth")?.value !== "authorized") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -40,6 +41,7 @@ export async function GET(req: NextRequest) {
     .from("photos")
     .select("id, image_path, note, created_at, group_id, groups:group_id(name)")
     .eq("user_id", userId)
+    .gte("created_at", START_DATE)
     .order("created_at", { ascending: false });
 
   if (photosRes.error) {
@@ -47,13 +49,13 @@ export async function GET(req: NextRequest) {
   }
 
   const photos = (photosRes.data ?? []).map((p) => {
-    const type = inferType(p.image_path);
+    const type = inferType(p.image_path, p.note);
     const date = (p.created_at as string).slice(0, 10);
     return {
       id: p.id,
       type,
       note: p.note ?? null,
-      url: getMediaUrl(p.image_path),
+      url: getMediaUrl(p.group_id, p.image_path),
       fallback_url: getFallbackUrl(p.image_path),
       image_path: p.image_path,
       created_at: p.created_at,

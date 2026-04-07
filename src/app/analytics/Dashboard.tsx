@@ -44,7 +44,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 
 interface TooltipProps {
   active?: boolean;
-  payload?: { name: string; value: number }[];
+  payload?: { name: string; value: number; payload: any }[];
   label?: string;
 }
 
