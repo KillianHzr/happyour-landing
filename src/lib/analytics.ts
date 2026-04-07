@@ -66,6 +66,7 @@ export interface AnalyticsData {
     totalUsers: number;
     totalGroups: number;
     totalReactions: number;
+    avgPostsPerGroupWeekly: number;
   };
 }
 
@@ -229,6 +230,32 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       return { date, count: totalCount, topUsers };
     });
 
+  // 7. Moyenne de posts par groupe par semaine (groupes actifs > 1 post)
+  const photosByWeekAndGroup = new Map<number, Map<string, number>>();
+  const START_TS = new Date(START_DATE).getTime();
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+  for (const p of photos) {
+    const ts = new Date(p.created_at).getTime();
+    const weekIndex = Math.floor((ts - START_TS) / WEEK_MS);
+    if (!photosByWeekAndGroup.has(weekIndex)) photosByWeekAndGroup.set(weekIndex, new Map());
+    const weekGroups = photosByWeekAndGroup.get(weekIndex)!;
+    weekGroups.set(p.group_id, (weekGroups.get(p.group_id) ?? 0) + 1);
+  }
+
+  const weeklyAverages: number[] = [];
+  for (const weekGroups of photosByWeekAndGroup.values()) {
+    const activeGroupsPosts = [...weekGroups.values()].filter(count => count > 1);
+    if (activeGroupsPosts.length > 0) {
+      const weekAvg = activeGroupsPosts.reduce((a, b) => a + b, 0) / activeGroupsPosts.length;
+      weeklyAverages.push(weekAvg);
+    }
+  }
+
+  const avgPostsPerGroupWeekly = weeklyAverages.length > 0
+    ? Math.round((weeklyAverages.reduce((a, b) => a + b, 0) / weeklyAverages.length) * 10) / 10
+    : 0;
+
   return {
     momentsByUser,
     typeDistribution,
@@ -249,6 +276,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       totalUsers: profiles.length,
       totalGroups: groups.length,
       totalReactions: reactions.length,
+      avgPostsPerGroupWeekly,
     },
   };
 }

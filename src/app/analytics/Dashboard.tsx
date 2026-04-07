@@ -100,7 +100,8 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
     csvContent += `Total Moments,${stats.totalMoments}\n`;
     csvContent += `Total Utilisateurs,${stats.totalUsers}\n`;
     csvContent += `Total Groupes,${stats.totalGroups}\n`;
-    csvContent += `Total Reactions,${stats.totalReactions}\n\n`;
+    csvContent += `Total Reactions,${stats.totalReactions}\n`;
+    csvContent += `Moyenne posts/groupe/semaine,${stats.avgPostsPerGroupWeekly}\n\n`;
 
     // 2. Types
     csvContent += "SECTION: REPARTITION PAR TYPE\n";
@@ -175,7 +176,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
         <KpiCard value={stats.totalMoments} label="Moments" />
         <KpiCard value={stats.totalUsers} label="Utilisateurs" />
         <KpiCard value={stats.totalGroups} label="Groupes" />
-        <KpiCard value={stats.totalReactions} label="Réactions" />
+        <KpiCard value={stats.avgPostsPerGroupWeekly} label="Posts / groupe / sem." isFloat />
       </section>
 
       {/* Timeline — pleine largeur au-dessus du masonry */}
@@ -403,10 +404,14 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
   );
 }
 
-function KpiCard({ value, label }: { value: number; label: string }) {
+function KpiCard({ value, label, isFloat }: { value: number; label: string; isFloat?: boolean }) {
+  const formattedValue = isFloat 
+    ? value.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    : value.toLocaleString("fr-FR");
+
   return (
     <div className={`${styles.kpiCard} glass-effect`}>
-      <p className={styles.kpiValue}>{value.toLocaleString("fr-FR")}</p>
+      <p className={styles.kpiValue}>{formattedValue}</p>
       <p className={styles.kpiLabel}>{label}</p>
     </div>
   );
