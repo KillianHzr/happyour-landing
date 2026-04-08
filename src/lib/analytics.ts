@@ -68,6 +68,8 @@ export interface AnalyticsData {
     totalGroups: number;
     totalReactions: number;
     avgPostsPerGroupWeekly: number;
+    avgMembersPerGroupActive: number;
+    avgMembersPerGroup: number;
   };
 }
 
@@ -247,16 +249,33 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   }
 
   const weeklyAverages: number[] = [];
+  const activeGroupMembersWeekly: number[] = [];
+
   for (const weekGroups of photosByWeekAndGroup.values()) {
-    const activeGroupsPosts = [...weekGroups.values()].filter(count => count > 1);
-    if (activeGroupsPosts.length > 0) {
-      const weekAvg = activeGroupsPosts.reduce((a, b) => a + b, 0) / activeGroupsPosts.length;
+    const activeEntries = [...weekGroups.entries()].filter(([_, count]) => count > 1);
+    if (activeEntries.length > 0) {
+      const weekAvg = activeEntries.reduce((a, b) => a + b[1], 0) / activeEntries.length;
       weeklyAverages.push(weekAvg);
+      
+      activeEntries.forEach(([gid]) => {
+        const membersCount = groupMembers.filter((gm) => gm.group_id === gid && validUserIds.has(gm.user_id)).length;
+        activeGroupMembersWeekly.push(membersCount);
+      });
     }
   }
 
   const avgPostsPerGroupWeekly = weeklyAverages.length > 0
     ? Math.round((weeklyAverages.reduce((a, b) => a + b, 0) / weeklyAverages.length) * 10) / 10
+    : 0;
+
+  const avgMembersPerGroupActive = activeGroupMembersWeekly.length > 0
+    ? Math.round((activeGroupMembersWeekly.reduce((a, b) => a + b, 0) / activeGroupMembersWeekly.length) * 10) / 10
+    : 0;
+
+  // 8. Moyenne de membres par groupe (groupes > 1 membre)
+  const groupsWithMultipleMembers = groupParticipation.filter(g => g.total > 1);
+  const avgMembersPerGroup = groupsWithMultipleMembers.length > 0
+    ? Math.round((groupsWithMultipleMembers.reduce((a, b) => a + b.total, 0) / groupsWithMultipleMembers.length) * 10) / 10
     : 0;
 
   return {
@@ -280,6 +299,8 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       totalGroups: groups.length,
       totalReactions: reactions.length,
       avgPostsPerGroupWeekly,
+      avgMembersPerGroupActive,
+      avgMembersPerGroup,
     },
   };
 }
