@@ -661,6 +661,13 @@
   color: var(--grey-text);
 }
 
+.kpiSubLabel {
+  font-size: 0.65rem;
+  color: var(--grey-text);
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
 /* Timeline full-width */
 .timelineWrap {
   width: 100%;

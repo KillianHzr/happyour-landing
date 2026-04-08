@@ -70,6 +70,8 @@ export interface AnalyticsData {
     avgPostsPerGroupWeekly: number;
     avgMembersPerGroupActive: number;
     avgMembersPerGroup: number;
+    maxGroupMembers: number;
+    maxGroupName: string;
   };
 }
 
@@ -278,6 +280,11 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     ? Math.round((groupsWithMultipleMembers.reduce((a, b) => a + b.total, 0) / groupsWithMultipleMembers.length) * 10) / 10
     : 0;
 
+  // 9. Groupe le plus peuplé
+  const maxGroup = groupParticipation.length > 0
+    ? [...groupParticipation].sort((a, b) => b.total - a.total)[0]
+    : { name: "N/A", total: 0 };
+
   return {
     momentsByUser,
     typeDistribution,
@@ -301,6 +308,8 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       avgPostsPerGroupWeekly,
       avgMembersPerGroupActive,
       avgMembersPerGroup,
+      maxGroupMembers: maxGroup.total,
+      maxGroupName: maxGroup.name,
     },
   };
 }

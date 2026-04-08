@@ -179,7 +179,12 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
         <KpiCard value={stats.totalUsers} label="Utilisateurs" />
         <KpiCard value={stats.avgPostsPerGroupWeekly} label="Posts / gr. / sem." isFloat />
         <KpiCard value={stats.avgMembersPerGroupActive} label="Membres / gr. actif" isFloat />
-        <KpiCard value={stats.avgMembersPerGroup} label="Membres / gr. (>1 m.)" isFloat />
+        <KpiCard 
+          value={stats.avgMembersPerGroup} 
+          label="Membres / gr. (>1 m.)" 
+          isFloat 
+          subLabel={`(max : ${stats.maxGroupMembers} - ${stats.maxGroupName})`}
+        />
       </section>
 
       {/* Timeline — pleine largeur au-dessus du masonry */}
@@ -410,7 +415,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
   );
 }
 
-function KpiCard({ value, label, isFloat }: { value: number; label: string; isFloat?: boolean }) {
+function KpiCard({ value, label, isFloat, subLabel }: { value: number; label: string; isFloat?: boolean; subLabel?: string }) {
   const formattedValue = isFloat 
     ? value.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
     : value.toLocaleString("fr-FR");
@@ -419,6 +424,7 @@ function KpiCard({ value, label, isFloat }: { value: number; label: string; isFl
     <div className={`${styles.kpiCard} glass-effect`}>
       <p className={styles.kpiValue}>{formattedValue}</p>
       <p className={styles.kpiLabel}>{label}</p>
+      {subLabel && <p className={styles.kpiSubLabel}>{subLabel}</p>}
     </div>
   );
 }
