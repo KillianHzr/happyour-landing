@@ -33,6 +33,7 @@ export interface GroupParticipation {
   rate: number;
   posted: number;
   total: number;
+  totalPosts: number;
 }
 
 export interface TimelinePoint {
@@ -193,8 +194,9 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   const groupParticipation: GroupParticipation[] = groups
     .map((g) => {
       const members = groupMembers.filter((gm) => gm.group_id === g.id && validUserIds.has(gm.user_id));
+      const groupPhotos = photos.filter((p) => p.group_id === g.id);
       const posters = new Set(
-        photos.filter((p) => p.group_id === g.id).map((p) => p.user_id)
+        groupPhotos.map((p) => p.user_id)
       );
       const total = members.length;
       const posted = posters.size;
@@ -204,9 +206,10 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
         rate,
         posted,
         total,
+        totalPosts: groupPhotos.length,
       };
     })
-    .sort((a, b) => b.rate - a.rate);
+    .sort((a, b) => b.totalPosts - a.totalPosts);
 
   // 6. Évolution dans le temps
   const timelineMap = new Map<string, Map<string, number>>();

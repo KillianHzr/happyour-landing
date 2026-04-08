@@ -137,9 +137,9 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
 
     // 6. Groups
     csvContent += "SECTION: PARTICIPATION GROUPES\n";
-    csvContent += "Nom,Membres Posteurs,Total Membres,Taux (%)\n";
+    csvContent += "Nom,Posts,Membres Posteurs,Total Membres,Taux (%)\n";
     groupParticipation.forEach(g => {
-      csvContent += `${g.name.replace(/,/g, ' ')},${g.posted},${g.total},${g.rate}\n`;
+      csvContent += `${g.name.replace(/,/g, ' ')},${g.totalPosts},${g.posted},${g.total},${g.rate}\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
@@ -238,19 +238,22 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
           </div>
 
           <div className={`${styles.card} glass-effect`}>
-            <p className={styles.cardLabel}>Participation par groupe</p>
+            <p className={styles.cardLabel}>Activité par groupe</p>
             <div className={styles.partList}>
               {groupParticipation.length === 0 && <Empty />}
               {groupParticipation.map((g) => (
                 <div key={g.name} className={styles.partRow}>
                   <div className={styles.partMeta}>
                     <span className={styles.partName}>{g.name}</span>
-                    <span className={styles.partRate}>{g.rate}%</span>
+                    <span className={styles.partRate}>{g.totalPosts} posts</span>
                   </div>
                   <div className={styles.progressBar}>
                     <div className={styles.progressFill} style={{ width: `${g.rate}%` }} />
                   </div>
-                  <span className={styles.partSub}>{g.posted} / {g.total} membres</span>
+                  <div className={styles.partSubRow}>
+                    <span className={styles.partSub}>{g.rate}% participation</span>
+                    <span className={styles.partSub}>{g.posted} / {g.total} membres</span>
+                  </div>
                 </div>
               ))}
             </div>

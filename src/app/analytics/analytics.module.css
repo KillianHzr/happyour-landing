@@ -905,6 +905,12 @@
   transition: width 0.6s ease;
 }
 
+.partSubRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .partSub {
   font-size: 0.75rem;
   color: var(--grey-text);
