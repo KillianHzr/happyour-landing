@@ -616,8 +616,8 @@
 
 /* KPIs */
 .kpiRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
   gap: 1.5rem;
   width: 100%;
   max-width: 1200px;
@@ -625,12 +625,16 @@
   z-index: 10;
 }
 
-@media (max-width: 900px) {
-  .kpiRow { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 1024px) {
+  .kpiRow { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .kpiRow { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
 }
 
 @media (max-width: 480px) {
-  .kpiRow { grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .kpiRow { grid-template-columns: 1fr; gap: 1rem; }
 }
 
 .kpiCard {
