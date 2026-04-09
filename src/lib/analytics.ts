@@ -88,9 +88,11 @@ function inferType(imagePath: string | null, note: string | null): string {
   return "Photo";
 }
 
-export async function fetchAnalyticsData(): Promise<AnalyticsData> {
-  const START_DATE = "2026-03-30T00:00:00Z";
+const START_DATE = "2026-03-30T00:00:00Z";
+const EXCLUDED_GROUP_ID = "7e15ead8-7e24-4d22-b587-7cb834fd38e5"; // HappyOur
+const EXCLUDED_USER_ID = "6feff666-5bcb-4b23-a9d8-22e38ceff5ca"; // theolanglade21@gmail.com
 
+export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   // La table s'appelle "photos" (pas "moments").
   // Les réactions référencent "photo_id" (pas "moment_id").
   const [photosRes, profilesRes, groupMembersRes, groupsRes, reactionsRes] =
@@ -112,19 +114,40 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     ]);
 
   const rawPhotos = photosRes.data ?? [];
-  const profiles = profilesRes.data ?? [];
-  const groupMembers = groupMembersRes.data ?? [];
-  const groups = groupsRes.data ?? [];
+  const rawProfiles = profilesRes.data ?? [];
+  const rawGroupMembers = groupMembersRes.data ?? [];
+  const rawGroups = groupsRes.data ?? [];
   const rawReactions = reactionsRes.data ?? [];
+
+  // 0. Filter out the specific group and user
+  const membersOfExcludedGroup = new Set(
+    rawGroupMembers
+      .filter((gm) => gm.group_id === EXCLUDED_GROUP_ID)
+      .map((gm) => gm.user_id)
+  );
+
+  const profiles = rawProfiles.filter(
+    (p) => p.id !== EXCLUDED_USER_ID && !membersOfExcludedGroup.has(p.id)
+  );
+  const groups = rawGroups.filter((g) => g.id !== EXCLUDED_GROUP_ID);
+  const groupMembers = rawGroupMembers.filter(
+    (gm) =>
+      gm.group_id !== EXCLUDED_GROUP_ID &&
+      gm.user_id !== EXCLUDED_USER_ID &&
+      !membersOfExcludedGroup.has(gm.user_id)
+  );
 
   // Map user id → username and valid users set
   const userMap = new Map(
     profiles.map((p) => [p.id, p.username ?? `user_${p.id.slice(0, 6)}`])
   );
   const validUserIds = new Set(profiles.map((p) => p.id));
+  const validGroupIds = new Set(groups.map((g) => g.id));
 
-  // Filter photos and reactions to only include those from valid (non-test) users
-  const photos = rawPhotos.filter((p) => validUserIds.has(p.user_id));
+  // Filter photos and reactions to only include those from valid (non-test, non-excluded) users and valid groups
+  const photos = rawPhotos.filter(
+    (p) => validUserIds.has(p.user_id) && validGroupIds.has(p.group_id)
+  );
   const reactions = rawReactions.filter((r) => validUserIds.has(r.user_id));
 
   // 1. Posts par utilisateur

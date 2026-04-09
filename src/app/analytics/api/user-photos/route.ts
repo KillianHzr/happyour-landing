@@ -4,6 +4,8 @@ import { supabase } from "@/lib/supabase-server";
 
 const STORAGE_BASE = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || "https://pub-c3c80a82b60448dba090aef503e3931b.r2.dev";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
+const EXCLUDED_GROUP_ID = "7e15ead8-7e24-4d22-b587-7cb834fd38e5"; // HappyOur
+const EXCLUDED_USER_ID = "6feff666-5bcb-4b23-a9d8-22e38ceff5ca"; // theolanglade21@gmail.com
 
 function getMediaUrl(groupId: string, imagePath: string | null): string | null {
   if (!imagePath || imagePath === "text_mode") return null;
@@ -37,10 +39,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
 
+  if (userId === EXCLUDED_USER_ID) {
+    return NextResponse.json({ photos: [] });
+  }
+
+  // Check if the user is in the excluded group
+  const groupMembersRes = await supabase
+    .from("group_members")
+    .select("group_id")
+    .eq("user_id", userId)
+    .eq("group_id", EXCLUDED_GROUP_ID);
+
+  if (groupMembersRes.data && groupMembersRes.data.length > 0) {
+    return NextResponse.json({ photos: [] });
+  }
+
   const photosRes = await supabase
     .from("photos")
     .select("id, image_path, note, created_at, group_id, groups:group_id(name)")
     .eq("user_id", userId)
+    .neq("group_id", EXCLUDED_GROUP_ID)
     .gte("created_at", START_DATE)
     .order("created_at", { ascending: false });
 

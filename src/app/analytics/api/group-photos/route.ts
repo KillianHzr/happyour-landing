@@ -4,6 +4,8 @@ import { supabase } from "@/lib/supabase-server";
 
 const STORAGE_BASE = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || "https://pub-c3c80a82b60448dba090aef503e3931b.r2.dev";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
+const EXCLUDED_GROUP_ID = "7e15ead8-7e24-4d22-b587-7cb834fd38e5"; // HappyOur
+const EXCLUDED_USER_ID = "6feff666-5bcb-4b23-a9d8-22e38ceff5ca"; // theolanglade21@gmail.com
 
 function getMediaUrl(imagePath: string | null): string | null {
   if (!imagePath || imagePath === "text_mode") return null;
@@ -36,6 +38,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing groupId" }, { status: 400 });
   }
 
+  if (groupId === EXCLUDED_GROUP_ID) {
+    return NextResponse.json({ photos: [] });
+  }
+
   const [photosRes, profilesRes] = await Promise.all([
     supabase
       .from("photos")
@@ -46,7 +52,8 @@ export async function GET(req: NextRequest) {
     supabase
       .from("profiles")
       .select("id, username, avatar_url")
-      .not("username", "ilike", "%test%"),
+      .not("username", "ilike", "%test%")
+      .neq("id", EXCLUDED_USER_ID),
   ]);
 
   if (photosRes.error) {
