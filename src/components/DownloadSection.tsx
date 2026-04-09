@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "./DownloadSection.module.css";
+import { supabase } from "@/lib/supabase-client";
 
 const AppleIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24">
@@ -20,12 +21,27 @@ export default function DownloadSection() {
   const [password, setPassword] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [error, setError] = useState(false);
+  const [apkUrl, setApkUrl] = useState("https://expo.dev/artifacts/eas/aBaphBpJiQSCSHMSjjZTTw.apk");
 
-  const APK_URL = "https://expo.dev/artifacts/eas/qxt79WhwBkGFNwCgcZ2KuC.apk";
+  useEffect(() => {
+    async function fetchConfig() {
+      if (!supabase) return;
+      const { data } = await supabase
+        .from("app_config")
+        .select("value")
+        .eq("key", "apk_url")
+        .single();
+      
+      if (data?.value) {
+        setApkUrl(data.value);
+      }
+    }
+    fetchConfig();
+  }, []);
 
   const downloadAPK = () => {
     const link = document.createElement("a");
-    link.href = APK_URL;
+    link.href = apkUrl;
     link.download = "HappyOur.apk";
     document.body.appendChild(link);
     link.click();
