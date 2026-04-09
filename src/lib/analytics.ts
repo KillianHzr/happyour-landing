@@ -86,10 +86,17 @@ export interface AnalyticsData {
  */
 function inferType(imagePath: string | null, note: string | null): string {
   if (!imagePath || imagePath === "text_mode") return "Texte";
-  if (imagePath.includes("_draw")) return "Dessin";
-  const ext = imagePath.split(".").pop()?.toLowerCase() ?? "";
+  
+  const path = imagePath.toLowerCase();
+  if (path.includes("_draw")) return "Dessin";
+  
+  // Extraire l'extension sans d'éventuels query params
+  const cleanPath = path.split('?')[0];
+  const ext = cleanPath.split(".").pop() ?? "";
+
   if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "Vidéo";
-  if (["m4a", "wav", "mp3", "aac"].includes(ext)) return "Audio";
+  if (["m4a", "wav", "mp3", "aac", "oga", "ogg"].includes(ext) || path.includes("_audio")) return "Audio";
+  
   return "Photo";
 }
 

@@ -21,10 +21,16 @@ function getFallbackUrl(imagePath: string | null): string | null {
 
 function inferType(imagePath: string | null, note: string | null): "photo" | "video" | "text" | "audio" | "drawing" {
   if (!imagePath || imagePath === "text_mode") return "text";
-  if (imagePath.includes("_draw")) return "drawing";
-  const ext = imagePath.split(".").pop()?.toLowerCase() ?? "";
+  
+  const path = imagePath.toLowerCase();
+  if (path.includes("_draw")) return "drawing";
+  
+  const cleanPath = path.split('?')[0];
+  const ext = cleanPath.split(".").pop() ?? "";
+
   if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "video";
-  if (["m4a", "wav", "mp3", "aac"].includes(ext)) return "audio";
+  if (["m4a", "wav", "mp3", "aac", "oga", "ogg"].includes(ext) || path.includes("_audio")) return "audio";
+  
   return "photo";
 }
 
