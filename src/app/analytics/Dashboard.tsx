@@ -185,6 +185,12 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
         />
         <KpiCard value={stats.avgPostsPerGroupWeekly} label="Posts / gr. / sem." isFloat />
         <KpiCard value={stats.avgMembersPerGroupActive} label="Membres / gr. actif" isFloat />
+        <KpiCard 
+          value={stats.avgMembersPerGroup} 
+          label="Membres / gr. (>1 m.)" 
+          isFloat 
+          subLabel={`(max : ${stats.maxGroupMembers} - ${stats.maxGroupName})`}
+        />
       </section>
 
       {/* Timeline — pleine largeur au-dessus du masonry */}
