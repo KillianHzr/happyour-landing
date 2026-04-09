@@ -174,7 +174,7 @@ export default function GlobalGroupManager({ groups }: { groups: GroupDetail[] }
                             className={styles.copyBtn} 
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigator.clipboard.writeText(g.invite_code);
+                              navigator.clipboard.writeText(g.invite_code!);
                             }}
                           >
                             📋
