@@ -19,10 +19,12 @@ function getFallbackUrl(imagePath: string | null): string | null {
   return `${SUPABASE_URL}/storage/v1/object/public/moments/${imagePath}`;
 }
 
-function inferType(imagePath: string | null, note: string | null): "photo" | "video" | "text" {
+function inferType(imagePath: string | null, note: string | null): "photo" | "video" | "text" | "audio" | "drawing" {
   if (!imagePath || imagePath === "text_mode") return "text";
+  if (imagePath.includes("_draw")) return "drawing";
   const ext = imagePath.split(".").pop()?.toLowerCase() ?? "";
   if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "video";
+  if (["m4a", "wav", "mp3", "aac"].includes(ext)) return "audio";
   return "photo";
 }
 

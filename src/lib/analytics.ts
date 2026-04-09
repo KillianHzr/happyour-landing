@@ -79,13 +79,17 @@ export interface AnalyticsData {
 /**
  * Infère le type d'un post.
  * - image_path null ET note présente → "Texte"
- * - image_path .mp4 / .mov / .avi … → "Vidéo"
+ * - image_path contient "_draw"       → "Dessin"
+ * - image_path .mp4 / .mov / …        → "Vidéo"
+ * - image_path .m4a / .wav / …        → "Audio"
  * - tout le reste                   → "Photo"
  */
 function inferType(imagePath: string | null, note: string | null): string {
   if (!imagePath || imagePath === "text_mode") return "Texte";
+  if (imagePath.includes("_draw")) return "Dessin";
   const ext = imagePath.split(".").pop()?.toLowerCase() ?? "";
   if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "Vidéo";
+  if (["m4a", "wav", "mp3", "aac"].includes(ext)) return "Audio";
   return "Photo";
 }
 

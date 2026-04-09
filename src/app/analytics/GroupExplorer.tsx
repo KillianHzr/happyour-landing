@@ -7,7 +7,7 @@ import styles from "./analytics.module.css";
 interface Photo {
   id: string;
   username: string;
-  type: "photo" | "video" | "text";
+  type: "photo" | "video" | "text" | "audio" | "drawing";
   note: string | null;
   url: string | null;
   fallback_url?: string | null;
@@ -348,6 +348,20 @@ function MomentItem({ photo }: { photo: Photo }) {
             controls
             playsInline
             preload="metadata"
+          />
+        </div>
+      );
+    }
+
+    if (photo.type === "audio") {
+      return (
+        <div className={styles.photoWrap}>
+          <audio
+            src={activeSrc}
+            className={styles.photoMedia}
+            controls
+            preload="metadata"
+            style={{ height: "48px", background: "rgba(255,255,255,0.05)", borderRadius: "12px" }}
           />
         </div>
       );

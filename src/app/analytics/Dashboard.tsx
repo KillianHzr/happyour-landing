@@ -31,13 +31,18 @@ const GREY = {
 
 const PIE_SHADES = [
   "rgba(255,255,255,0.85)",
-  "rgba(255,255,255,0.50)",
+  "rgba(255,255,255,0.60)",
+  "rgba(255,255,255,0.40)",
   "rgba(255,255,255,0.25)",
   "rgba(255,255,255,0.12)",
 ];
 
 const TYPE_LABELS: Record<string, string> = {
-  Photo: "Photo", Vidéo: "Vidéo", Texte: "Texte",
+  Photo: "Photo",
+  Vidéo: "Vidéo",
+  Texte: "Texte",
+  Dessin: "Dessin",
+  Audio: "Audio",
 };
 
 const MEDALS = ["🥇", "🥈", "🥉"];
