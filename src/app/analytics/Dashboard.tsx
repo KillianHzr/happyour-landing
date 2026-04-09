@@ -163,21 +163,23 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
   return (
     <main className={styles.dashPage}>
       <header className={styles.dashHeader}>
-        <div className={styles.logo}>HappyOur</div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button className={styles.exportBtn} onClick={exportToCSV}>
-            📥 Rapport Complet
-          </button>
-          <div className={styles.badge}>Analytics Interne</div>
+        <div className={styles.logo}>HappyOur <span className={styles.logoSub}>Analytics</span></div>
+        <div className={styles.headerInfo}>
+          <div className={styles.badge}>Interne</div>
+          <div className={styles.studio}>Source Studio</div>
         </div>
-        <div className={styles.studio}>Source Studio</div>
       </header>
 
       <section className={styles.dashHero}>
-        <h1 className={styles.dashTitle}>Dashboard</h1>
+        <h1 className={styles.dashTitle}>Tableau de bord</h1>
         <p className={styles.dashSubtitle}>
           Données filtrées depuis le 30/03/2026 · Accès strictement confidentiel
         </p>
+      </section>
+
+      {/* Global Group Manager - Always visible now */}
+      <section className={styles.managerSection}>
+        <GlobalGroupManager groups={data.groupDetails} />
       </section>
 
       {/* KPIs */}
@@ -224,18 +226,29 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
         <div className={styles.masonryCol}>
 
           <div className={`${styles.card} glass-effect`}>
-            <p className={styles.cardLabel}>Moments par utilisateur</p>
-            {momentsByUser.length === 0 ? <Empty /> : (
-              <ResponsiveContainer width="100%" height={momentsByUser.length * 32 + 20}>
-                <BarChart data={momentsByUser} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke={GREY[500]} horizontal={false} />
-                  <XAxis type="number" tick={{ fill: "#888", fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="username" tick={{ fill: "#ccc", fontSize: 12 }} tickLine={false} axisLine={false} width={88} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="count" name="Moments" fill={GREY[200]} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+            <p className={styles.cardLabel}>Activité par groupe</p>
+            <div className={styles.groupActivityTable}>
+              {groupParticipation.length === 0 && <Empty />}
+              {groupParticipation.map((g) => (
+                <div key={g.name} className={styles.groupActivityRow}>
+                  <div className={styles.groupActivityInfo}>
+                    <span className={styles.groupActivityName}>{g.name}</span>
+                    <span className={styles.groupActivityStat}>
+                      <strong>{g.totalPosts}</strong> moments · {g.posted}/{g.total} membres
+                    </span>
+                  </div>
+                  <div className={styles.groupActivityProgress}>
+                    <div className={styles.groupActivityProgressBg}>
+                      <div 
+                        className={styles.groupActivityProgressFill} 
+                        style={{ width: `${g.rate}%` }} 
+                      />
+                    </div>
+                    <span className={styles.groupActivityRate}>{g.rate}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className={`${styles.card} glass-effect`}>
@@ -255,28 +268,6 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                 </BarChart>
               </ResponsiveContainer>
             )}
-          </div>
-
-          <div className={`${styles.card} glass-effect`}>
-            <p className={styles.cardLabel}>Activité par groupe</p>
-            <div className={styles.partList}>
-              {groupParticipation.length === 0 && <Empty />}
-              {groupParticipation.map((g) => (
-                <div key={g.name} className={styles.partRow}>
-                  <div className={styles.partMeta}>
-                    <span className={styles.partName}>{g.name}</span>
-                    <span className={styles.partRate}>{g.totalPosts} posts</span>
-                  </div>
-                  <div className={styles.progressBar}>
-                    <div className={styles.progressFill} style={{ width: `${g.rate}%` }} />
-                  </div>
-                  <div className={styles.partSubRow}>
-                    <span className={styles.partSub}>{g.rate}% participation</span>
-                    <span className={styles.partSub}>{g.posted} / {g.total} membres</span>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
         </div>
@@ -337,7 +328,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
 
           <div className={`${styles.card} glass-effect`}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <p className={styles.cardLabel} style={{ marginBottom: 0 }}>Membres les plus actifs</p>
+              <p className={styles.cardLabel} style={{ marginBottom: 0 }}>Activité des membres</p>
               <button className={styles.exportBtn} onClick={() => setShowTable(true)}>
                 <span>📊</span> Voir Tout
               </button>
@@ -347,9 +338,14 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
               {activeMembers.slice(0, visibleMembers).map((m, i) => (
                 <div key={m.username} className={styles.rankRow}>
                   <span className={styles.rankPos}>{i < 3 ? MEDALS[i] : `#${i + 1}`}</span>
-                  <span className={styles.rankName}>{m.username}</span>
-                  <span className={styles.rankMeta}>{m.moments} posts · {m.reactions} réac.</span>
-                  <span className={styles.rankScore}>{m.score} pts</span>
+                  <div className={styles.rankMemberInfo}>
+                    <span className={styles.rankName}>{m.username}</span>
+                    <span className={styles.rankMetaSub}>{m.reactions} réactions</span>
+                  </div>
+                  <div className={styles.rankCount}>
+                    <span className={styles.rankCountValue}>{m.moments}</span>
+                    <span className={styles.rankCountLabel}>moments</span>
+                  </div>
                 </div>
               ))}
               {visibleMembers < activeMembers.length && (
@@ -367,15 +363,17 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
         <section className={styles.explorerSection}>
           <div className={styles.explorerSectionHeader}>
             <div className={styles.explorerSectionLine} />
-            <span className={styles.explorerSectionLabel}>Administration</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(255,255,255,0.05)', padding: '4px 16px', borderRadius: '20px' }}>
+              <span className={styles.explorerSectionLabel}>Admin Extra</span>
+              <button className={styles.miniExportBtn} onClick={exportToCSV}>
+                📥 CSV
+              </button>
+            </div>
             <div className={styles.explorerSectionLine} />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-            <GlobalGroupManager groups={data.groupDetails} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
-              <GroupExplorer groups={data.groups} />
-              <UserExplorer users={data.users} />
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+            <GroupExplorer groups={data.groups} />
+            <UserExplorer users={data.users} />
           </div>
         </section>
       )}
