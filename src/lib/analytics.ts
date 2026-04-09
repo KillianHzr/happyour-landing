@@ -52,6 +52,22 @@ export interface UserItem {
   username: string;
 }
 
+export interface GroupDetail {
+  id: string;
+  name: string;
+  created_at: string;
+  created_by: string;
+  admin_username: string;
+  invite_code: string | null;
+  members: {
+    id: string;
+    username: string;
+    role: string;
+    joined_at: string;
+  }[];
+  photo_count: number;
+}
+
 export interface AnalyticsData {
   momentsByUser: MomentsByUser[];
   typeDistribution: TypeDistribution[];
@@ -62,6 +78,7 @@ export interface AnalyticsData {
   momentTimeline: TimelinePoint[];
   groups: GroupItem[];
   users: UserItem[];
+  groupDetails: GroupDetail[];
   stats: {
     totalMoments: number;
     totalUsers: number;
@@ -117,8 +134,8 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
         .from("profiles")
         .select("id, username, created_at")
         .not("username", "ilike", "%test%"),
-      supabase.from("group_members").select("group_id, user_id"),
-      supabase.from("groups").select("id, name"),
+      supabase.from("group_members").select("group_id, user_id, joined_at, role"),
+      supabase.from("groups").select("id, name, created_at, created_by, invite_code"),
       supabase
         .from("reactions")
         .select("photo_id, user_id, type, created_at")
@@ -324,6 +341,28 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
 
   const activeGroupsCount = groupParticipation.filter(g => g.totalPosts > 0).length;
 
+  const groupDetails: GroupDetail[] = (rawGroups as any[]).map((g) => {
+    const members = (rawGroupMembers as any[])
+      .filter((gm) => gm.group_id === g.id)
+      .map((gm) => ({
+        id: gm.user_id,
+        username: userMap.get(gm.user_id) ?? `user_${gm.user_id.slice(0, 6)}`,
+        role: gm.role,
+        joined_at: gm.joined_at,
+      }));
+    const photo_count = rawPhotos.filter((p) => p.group_id === g.id).length;
+    return {
+      id: g.id,
+      name: g.name ?? `Groupe ${g.id.slice(0, 6)}`,
+      created_at: g.created_at,
+      created_by: g.created_by,
+      admin_username: userMap.get(g.created_by) ?? "Inconnu",
+      invite_code: g.invite_code,
+      members,
+      photo_count,
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+
   return {
     momentsByUser,
     typeDistribution,
@@ -339,6 +378,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     users: rawProfiles
       .map((p) => ({ id: p.id, username: p.username ?? `user_${p.id.slice(0, 6)}` }))
       .sort((a, b) => a.username.localeCompare(b.username)),
+    groupDetails,
     stats: {
       totalMoments: photos.length,
       totalUsers: filteredProfiles.length,

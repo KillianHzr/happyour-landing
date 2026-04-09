@@ -21,6 +21,7 @@ import type { AnalyticsData } from "@/lib/analytics";
 import styles from "./analytics.module.css";
 import GroupExplorer from "./GroupExplorer";
 import UserExplorer from "./UserExplorer";
+import GlobalGroupManager from "./GlobalGroupManager";
 
 const GREY = {
   100: "rgba(255,255,255,0.90)",
@@ -369,9 +370,12 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
             <span className={styles.explorerSectionLabel}>Administration</span>
             <div className={styles.explorerSectionLine} />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
-            <GroupExplorer groups={data.groups} />
-            <UserExplorer users={data.users} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <GlobalGroupManager groups={data.groupDetails} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+              <GroupExplorer groups={data.groups} />
+              <UserExplorer users={data.users} />
+            </div>
           </div>
         </section>
       )}
