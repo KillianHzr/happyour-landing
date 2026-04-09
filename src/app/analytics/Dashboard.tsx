@@ -112,7 +112,15 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
     csvContent += `Moyenne membres/groupe actif,${stats.avgMembersPerGroupActive}\n`;
     csvContent += `Moyenne membres/groupe (>1 membre),${stats.avgMembersPerGroup}\n\n`;
 
-    // 2. Types
+    // 2. Timeline
+    csvContent += "SECTION: EVOLUTION TEMPORELLE\n";
+    csvContent += "Date,Nombre de Moments\n";
+    momentTimeline.forEach(t => {
+      csvContent += `${t.date},${t.count}\n`;
+    });
+    csvContent += "\n";
+
+    // 3. Types
     csvContent += "SECTION: REPARTITION PAR TYPE\n";
     csvContent += "Type,Nombre\n";
     typeDistribution.forEach(t => {
@@ -120,7 +128,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
     });
     csvContent += "\n";
 
-    // 3. Daily
+    // 4. Daily
     csvContent += "SECTION: DISTRIBUTION JOURNALIERE\n";
     csvContent += "Jour,Nombre\n";
     dailyDistribution.forEach(d => {
@@ -128,7 +136,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
     });
     csvContent += "\n";
 
-    // 4. Hourly
+    // 5. Hourly
     csvContent += "SECTION: DISTRIBUTION HORAIRE\n";
     csvContent += "Heure,Nombre\n";
     hourlyDistribution.forEach(h => {
@@ -136,7 +144,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
     });
     csvContent += "\n";
 
-    // 5. Users
+    // 6. Users
     csvContent += "SECTION: ACTIVITE UTILISATEURS\n";
     csvContent += "Username,Moments,Reactions,Score\n";
     activeMembers.forEach(m => {
@@ -144,11 +152,19 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
     });
     csvContent += "\n";
 
-    // 6. Groups
+    // 7. Groups (Participation)
     csvContent += "SECTION: PARTICIPATION GROUPES\n";
     csvContent += "Nom,Posts,Membres Posteurs,Total Membres,Taux (%)\n";
     groupParticipation.forEach(g => {
       csvContent += `${g.name.replace(/,/g, ' ')},${g.totalPosts},${g.posted},${g.total},${g.rate}\n`;
+    });
+    csvContent += "\n";
+
+    // 8. Global Group Details (Tags, Admin, etc.)
+    csvContent += "SECTION: DETAILS GLOBAUX DES GROUPES\n";
+    csvContent += "ID,Nom,Admin,Code Invite,Membres,Posts,Date Creation\n";
+    data.groupDetails.forEach(g => {
+      csvContent += `${g.id},${g.name.replace(/,/g, ' ')},${g.admin_username},${g.invite_code || "N/A"},${g.members.length},${g.photo_count},${g.created_at}\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
@@ -165,6 +181,9 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
       <header className={styles.dashHeader}>
         <div className={styles.logo}>HappyOur <span className={styles.logoSub}>Analytics</span></div>
         <div className={styles.headerInfo}>
+          <button className={styles.exportBtn} onClick={exportToCSV}>
+            📥 Rapport CSV
+          </button>
           <div className={styles.badge}>Interne</div>
           <div className={styles.studio}>Source Studio</div>
         </div>
