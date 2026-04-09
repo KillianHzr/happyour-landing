@@ -66,6 +66,7 @@ export interface AnalyticsData {
     totalMoments: number;
     totalUsers: number;
     totalGroups: number;
+    activeGroups: number;
     totalReactions: number;
     avgPostsPerGroupWeekly: number;
     avgMembersPerGroupActive: number;
@@ -310,6 +311,8 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     ? [...groupParticipation].sort((a, b) => b.total - a.total)[0]
     : { name: "N/A", total: 0 };
 
+  const activeGroupsCount = groupParticipation.filter(g => g.totalPosts > 0).length;
+
   return {
     momentsByUser,
     typeDistribution,
@@ -329,6 +332,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       totalMoments: photos.length,
       totalUsers: filteredProfiles.length,
       totalGroups: filteredGroups.length,
+      activeGroups: activeGroupsCount,
       totalReactions: reactions.length,
       avgPostsPerGroupWeekly,
       avgMembersPerGroupActive,

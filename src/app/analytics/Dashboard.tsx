@@ -100,6 +100,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
     csvContent += `Total Moments,${stats.totalMoments}\n`;
     csvContent += `Total Utilisateurs,${stats.totalUsers}\n`;
     csvContent += `Total Groupes,${stats.totalGroups}\n`;
+    csvContent += `Groupes Actifs,${stats.activeGroups}\n`;
     csvContent += `Total Reactions,${stats.totalReactions}\n`;
     csvContent += `Moyenne posts/groupe/semaine,${stats.avgPostsPerGroupWeekly}\n`;
     csvContent += `Moyenne membres/groupe actif,${stats.avgMembersPerGroupActive}\n`;
@@ -177,14 +178,13 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
       <section className={styles.kpiRow}>
         <KpiCard value={stats.totalMoments} label="Moments" />
         <KpiCard value={stats.totalUsers} label="Utilisateurs" />
+        <KpiCard 
+          value={stats.activeGroups} 
+          label="Groupes Actifs" 
+          subLabel={`${stats.totalGroups} au total`}
+        />
         <KpiCard value={stats.avgPostsPerGroupWeekly} label="Posts / gr. / sem." isFloat />
         <KpiCard value={stats.avgMembersPerGroupActive} label="Membres / gr. actif" isFloat />
-        <KpiCard 
-          value={stats.avgMembersPerGroup} 
-          label="Membres / gr. (>1 m.)" 
-          isFloat 
-          subLabel={`(max : ${stats.maxGroupMembers} - ${stats.maxGroupName})`}
-        />
       </section>
 
       {/* Timeline — pleine largeur au-dessus du masonry */}
