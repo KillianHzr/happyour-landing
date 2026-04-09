@@ -177,11 +177,6 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
         </p>
       </section>
 
-      {/* Global Group Manager - Always visible now */}
-      <section className={styles.managerSection}>
-        <GlobalGroupManager groups={data.groupDetails} />
-      </section>
-
       {/* KPIs */}
       <section className={styles.kpiRow}>
         <KpiCard value={stats.totalMoments} label="Moments" />
@@ -358,6 +353,11 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
 
         </div>
       </div>
+
+      {/* Global Group Manager - Always visible, now at the bottom */}
+      <section className={styles.managerSection} style={{ marginTop: '5rem' }}>
+        <GlobalGroupManager groups={data.groupDetails} />
+      </section>
 
       {isAdmin && (
         <section className={styles.explorerSection}>

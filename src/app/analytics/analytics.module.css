@@ -877,3 +877,123 @@
 }
 
 /* End of CSS Overhaul */
+
+/* ════════════════════════════════════════
+   MODAL & DATA TABLE
+   ════════════════════════════════════════ */
+
+.tableModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 40px;
+  animation: fadeIn 0.3s ease;
+}
+
+.tableModalContainer {
+  width: 100%;
+  max-width: 1200px;
+  max-height: 85vh;
+  background: #0a0a0a;
+  border-radius: 28px;
+  border: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.9);
+}
+
+.tableModalHeader {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.02);
+}
+
+.tableModalTitle {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.tableModalClose {
+  font-size: 28px;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: none;
+  border: none;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.tableModalClose:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.05);
+}
+
+.tableScroll {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem 2rem 2rem;
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.9rem;
+  color: #ddd;
+}
+
+.dataTable th {
+  position: sticky;
+  top: 0;
+  background: #0a0a0a;
+  padding: 1.25rem 1rem;
+  text-align: left;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: var(--grey-text);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  z-index: 10;
+}
+
+.dataTable td {
+  padding: 1.25rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  transition: background 0.2s;
+}
+
+.dataTable tr:hover td {
+  background: rgba(255,255,255,0.02);
+  color: #fff;
+}
+
+.dataTable strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
