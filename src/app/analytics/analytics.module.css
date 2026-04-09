@@ -1067,3 +1067,89 @@
   box-shadow: none !important;
 }
 
+
+/* ════════════════════════════════════════
+   CODE GATE — RESTORED STYLES
+   ════════════════════════════════════════ */
+
+.gatePage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  padding: 2rem;
+  background: var(--background);
+}
+
+.gateHeader {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6rem;
+  z-index: 10;
+}
+
+.gateContainer {
+  width: 100%;
+  max-width: 480px;
+  z-index: 10;
+  margin-top: 1rem;
+}
+
+.gateForm {
+  padding: 3rem;
+  border-radius: 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+}
+
+.gateForm h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--white);
+}
+
+.gateForm p {
+  color: var(--grey-text);
+  font-size: 0.9rem;
+}
+
+/* Base button used in gate */
+.button {
+  background: var(--white);
+  color: var(--background);
+  padding: 0.8rem 2rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background 0.3s ease, opacity 0.2s ease;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+}
+
+.button:hover:not(:disabled) {
+  background: #cccccc;
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #ff4444;
+  font-size: 0.8rem;
+  margin-top: -0.5rem;
+}
+
