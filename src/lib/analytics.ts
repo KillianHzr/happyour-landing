@@ -119,36 +119,38 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   const rawGroups = groupsRes.data ?? [];
   const rawReactions = reactionsRes.data ?? [];
 
-  // 0. Filter out the specific group and user
+  // 0. Define the team to exclude from STATS
   const membersOfExcludedGroup = new Set(
     rawGroupMembers
       .filter((gm) => gm.group_id === EXCLUDED_GROUP_ID)
       .map((gm) => gm.user_id)
   );
 
-  const profiles = rawProfiles.filter(
+  // Filtered versions for all KPIs and charts
+  const filteredProfiles = rawProfiles.filter(
     (p) => p.id !== EXCLUDED_USER_ID && !membersOfExcludedGroup.has(p.id)
   );
-  const groups = rawGroups.filter((g) => g.id !== EXCLUDED_GROUP_ID);
-  const groupMembers = rawGroupMembers.filter(
+  const filteredGroups = rawGroups.filter((g) => g.id !== EXCLUDED_GROUP_ID);
+  const filteredGroupMembers = rawGroupMembers.filter(
     (gm) =>
       gm.group_id !== EXCLUDED_GROUP_ID &&
       gm.user_id !== EXCLUDED_USER_ID &&
       !membersOfExcludedGroup.has(gm.user_id)
   );
 
-  // Map user id → username and valid users set
+  // Map user id → username for display (includes everyone for explorers)
   const userMap = new Map(
-    profiles.map((p) => [p.id, p.username ?? `user_${p.id.slice(0, 6)}`])
+    rawProfiles.map((p) => [p.id, p.username ?? `user_${p.id.slice(0, 6)}`])
   );
-  const validUserIds = new Set(profiles.map((p) => p.id));
-  const validGroupIds = new Set(groups.map((g) => g.id));
+  
+  const filteredUserIds = new Set(filteredProfiles.map((p) => p.id));
+  const filteredGroupIds = new Set(filteredGroups.map((g) => g.id));
 
-  // Filter photos and reactions to only include those from valid (non-test, non-excluded) users and valid groups
+  // Filter photos and reactions for STATS only (exclude team)
   const photos = rawPhotos.filter(
-    (p) => validUserIds.has(p.user_id) && validGroupIds.has(p.group_id)
+    (p) => filteredUserIds.has(p.user_id) && filteredGroupIds.has(p.group_id)
   );
-  const reactions = rawReactions.filter((r) => validUserIds.has(r.user_id));
+  const reactions = rawReactions.filter((r) => filteredUserIds.has(r.user_id));
 
   // 1. Posts par utilisateur
   const momentsByUserMap = new Map<string, number>();
@@ -202,8 +204,8 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     reactionsByUser.set(r.user_id, (reactionsByUser.get(r.user_id) ?? 0) + 1);
   }
   
-  // Inclure TOUS les profils valides, même ceux sans activité
-  const activeMembers: ActiveMember[] = profiles
+  // Inclure TOUS les profils valides FILTRÉS, même ceux sans activité
+  const activeMembers: ActiveMember[] = filteredProfiles
     .map((p) => {
       const uid = p.id;
       const mCount = momentsByUserMap.get(uid) ?? 0;
@@ -218,9 +220,9 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     .sort((a, b) => b.score - a.score);
 
   // 5. Taux de participation par groupe
-  const groupParticipation: GroupParticipation[] = groups
+  const groupParticipation: GroupParticipation[] = filteredGroups
     .map((g) => {
-      const members = groupMembers.filter((gm) => gm.group_id === g.id && validUserIds.has(gm.user_id));
+      const members = filteredGroupMembers.filter((gm) => gm.group_id === g.id && filteredUserIds.has(gm.user_id));
       const groupPhotos = photos.filter((p) => p.group_id === g.id);
       const posters = new Set(
         groupPhotos.map((p) => p.user_id)
@@ -283,7 +285,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       weeklyAverages.push(weekAvg);
       
       activeEntries.forEach(([gid]) => {
-        const membersCount = groupMembers.filter((gm) => gm.group_id === gid && validUserIds.has(gm.user_id)).length;
+        const membersCount = filteredGroupMembers.filter((gm) => gm.group_id === gid && filteredUserIds.has(gm.user_id)).length;
         activeGroupMembersWeekly.push(membersCount);
       });
     }
@@ -316,17 +318,17 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     activeMembers,
     groupParticipation,
     momentTimeline,
-    groups: groups.map((g) => ({
+    groups: rawGroups.map((g) => ({
       id: g.id,
       name: g.name ?? `Groupe ${g.id.slice(0, 6)}`,
-    })),
-    users: profiles
+    })).sort((a, b) => a.name.localeCompare(b.name)),
+    users: rawProfiles
       .map((p) => ({ id: p.id, username: p.username ?? `user_${p.id.slice(0, 6)}` }))
       .sort((a, b) => a.username.localeCompare(b.username)),
     stats: {
       totalMoments: photos.length,
-      totalUsers: profiles.length,
-      totalGroups: groups.length,
+      totalUsers: filteredProfiles.length,
+      totalGroups: filteredGroups.length,
       totalReactions: reactions.length,
       avgPostsPerGroupWeekly,
       avgMembersPerGroupActive,

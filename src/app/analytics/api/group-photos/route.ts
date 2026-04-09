@@ -38,10 +38,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing groupId" }, { status: 400 });
   }
 
-  if (groupId === EXCLUDED_GROUP_ID) {
-    return NextResponse.json({ photos: [] });
-  }
-
   const [photosRes, profilesRes] = await Promise.all([
     supabase
       .from("photos")
@@ -52,8 +48,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("profiles")
       .select("id, username, avatar_url")
-      .not("username", "ilike", "%test%")
-      .neq("id", EXCLUDED_USER_ID),
+      .not("username", "ilike", "%test%"),
   ]);
 
   if (photosRes.error) {
