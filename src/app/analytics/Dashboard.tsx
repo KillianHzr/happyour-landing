@@ -265,25 +265,6 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
             </div>
           </div>
 
-          <div className={`${styles.card} glass-effect`}>
-            <p className={styles.cardLabel}>Heure de publication favorite</p>
-            {momentTimeline.length === 0 ? <Empty /> : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={hourlyDistribution}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={GREY[500]} />
-                  <XAxis dataKey="hour" tick={{ fill: "#888", fontSize: 10 }} tickLine={false} axisLine={false} interval={3} />
-                  <YAxis tick={{ fill: "#888", fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="count" name="Moments" radius={[3, 3, 0, 0]}>
-                    {hourlyDistribution.map((entry, i) => (
-                      <Cell key={i} fill={entry.count === maxHour && maxHour > 0 ? GREY[100] : GREY[300]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
         </div>
 
         {/* Colonne droite */}
@@ -333,6 +314,25 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                   <Bar dataKey="count" name="Moments" radius={[4, 4, 0, 0]}>
                     {dailyDistribution.map((entry, i) => (
                       <Cell key={i} fill={entry.count === maxDay && maxDay > 0 ? GREY[100] : GREY[300]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <div className={`${styles.card} glass-effect`}>
+            <p className={styles.cardLabel}>Heure de publication favorite</p>
+            {momentTimeline.length === 0 ? <Empty /> : (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={hourlyDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={GREY[500]} />
+                  <XAxis dataKey="hour" tick={{ fill: "#888", fontSize: 10 }} tickLine={false} axisLine={false} interval={3} />
+                  <YAxis tick={{ fill: "#888", fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="count" name="Moments" radius={[3, 3, 0, 0]}>
+                    {hourlyDistribution.map((entry, i) => (
+                      <Cell key={i} fill={entry.count === maxHour && maxHour > 0 ? GREY[100] : GREY[300]} />
                     ))}
                   </Bar>
                 </BarChart>
