@@ -177,9 +177,9 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
 
     // 6. Users
     csvContent += "SECTION: ACTIVITE UTILISATEURS\n";
-    csvContent += "Username,Moments,Reactions,Score\n";
+    csvContent += "Username,Groupes,Moments,Reactions,Score\n";
     activeMembers.forEach(m => {
-      csvContent += `${m.username},${m.moments},${m.reactions},${m.score}\n`;
+      csvContent += `${m.username},"${m.groupNames.replace(/"/g, '""')}",${m.moments},${m.reactions},${m.score}\n`;
     });
     csvContent += "\n";
 
@@ -230,7 +230,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
       {/* KPIs */}
       <section className={styles.kpiRow}>
         <KpiCard value={stats.totalMoments} label="Moments" />
-        <KpiCard value={stats.totalUsers} label="Utilisateurs" />
+        <KpiCard value={stats.totalUsers} label="Vrais utilisateurs" />
         <KpiCard 
           value={stats.activeGroups} 
           label="Groupes Actifs" 
@@ -396,7 +396,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                 <div key={m.username} className={styles.rankRow}>
                   <span className={styles.rankPos}>{i < 3 ? MEDALS[i] : `#${i + 1}`}</span>
                   <div className={styles.rankMemberInfo}>
-                    <span className={styles.rankName}>{m.username}</span>
+                    <span className={styles.rankName}>{m.username} <span className={styles.rankGroupName}>({m.groupNames})</span></span>
                     <span className={styles.rankMetaSub}>{m.reactions} réactions</span>
                   </div>
                   <div className={styles.rankCount}>
@@ -458,6 +458,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                   <tr>
                     <th>Rang</th>
                     <th>Pseudo</th>
+                    <th>Groupes</th>
                     <th>Moments</th>
                     <th>Réactions</th>
                     <th>Score</th>
@@ -468,6 +469,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                     <tr key={m.username}>
                       <td>{i + 1}</td>
                       <td><strong>{m.username}</strong></td>
+                      <td style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{m.groupNames}</td>
                       <td>{m.moments}</td>
                       <td>{m.reactions}</td>
                       <td>{m.score}</td>

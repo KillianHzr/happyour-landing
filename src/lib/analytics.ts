@@ -26,6 +26,7 @@ export interface ActiveMember {
   moments: number;
   reactions: number;
   score: number;
+  groupNames: string;
 }
 
 export interface GroupParticipation {
@@ -163,11 +164,24 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       .map((gm) => gm.user_id)
   );
 
+  const filteredGroups = rawGroups.filter((g) => g.id !== EXCLUDED_GROUP_ID);
+  const filteredGroupIds = new Set(filteredGroups.map((g) => g.id));
+
+  // Users who are members of at least one non-excluded group
+  const usersInFilteredGroups = new Set(
+    rawGroupMembers
+      .filter((gm) => filteredGroupIds.has(gm.group_id))
+      .map((gm) => gm.user_id)
+  );
+
   // Filtered versions for all KPIs and charts
   const filteredProfiles = rawProfiles.filter(
-    (p) => p.id !== EXCLUDED_USER_ID && !membersOfExcludedGroup.has(p.id)
+    (p) => 
+      p.id !== EXCLUDED_USER_ID && 
+      !membersOfExcludedGroup.has(p.id) &&
+      usersInFilteredGroups.has(p.id)
   );
-  const filteredGroups = rawGroups.filter((g) => g.id !== EXCLUDED_GROUP_ID);
+  
   const filteredGroupMembers = rawGroupMembers.filter(
     (gm) =>
       gm.group_id !== EXCLUDED_GROUP_ID &&
@@ -181,17 +195,16 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   );
   
   const filteredUserIds = new Set(filteredProfiles.map((p) => p.id));
-  const filteredGroupIds = new Set(filteredGroups.map((g) => g.id));
 
-  // Filter photos and reactions for STATS only (exclude team)
-  const photos = rawPhotos.filter(
+  // 1. Filtered photos and reactions for STATS only (exclude team)
+  const photosForStats = rawPhotos.filter(
     (p) => filteredUserIds.has(p.user_id) && filteredGroupIds.has(p.group_id)
   );
   const reactions = rawReactions.filter((r) => filteredUserIds.has(r.user_id));
 
   // 1. Posts par utilisateur
   const momentsByUserMap = new Map<string, number>();
-  for (const p of photos) {
+  for (const p of photosForStats) {
     momentsByUserMap.set(p.user_id, (momentsByUserMap.get(p.user_id) ?? 0) + 1);
   }
   const momentsByUser: MomentsByUser[] = [...momentsByUserMap.entries()]
@@ -204,7 +217,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
 
   // 2. Répartition par type (inférée depuis image_path + note)
   const typeMap = new Map<string, number>();
-  for (const p of photos) {
+  for (const p of photosForStats) {
     const t = inferType(p.image_path, p.note);
     typeMap.set(t, (typeMap.get(t) ?? 0) + 1);
   }
@@ -215,7 +228,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   // 3a. Distribution par jour de la semaine (lundi = 0)
   const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
   const dayMap = new Map<number, number>();
-  for (const p of photos) {
+  for (const p of photosForStats) {
     const dow = (new Date(p.created_at).getDay() + 6) % 7; // 0=Lun … 6=Dim
     dayMap.set(dow, (dayMap.get(dow) ?? 0) + 1);
   }
@@ -226,7 +239,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
 
   // 3b. Distribution horaire
   const hourMap = new Map<number, number>();
-  for (const p of photos) {
+  for (const p of photosForStats) {
     const hour = new Date(p.created_at).getHours();
     hourMap.set(hour, (hourMap.get(hour) ?? 0) + 1);
   }
@@ -240,27 +253,38 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   for (const r of reactions) {
     reactionsByUser.set(r.user_id, (reactionsByUser.get(r.user_id) ?? 0) + 1);
   }
-  
+
   // Inclure TOUS les profils valides FILTRÉS, même ceux sans activité
   const activeMembers: ActiveMember[] = filteredProfiles
     .map((p) => {
       const uid = p.id;
       const mCount = momentsByUserMap.get(uid) ?? 0;
       const rCount = reactionsByUser.get(uid) ?? 0;
+
+      // Get group names for this user
+      const userGroupIds = rawGroupMembers
+        .filter(gm => gm.user_id === uid)
+        .map(gm => gm.group_id);
+      const userGroups = rawGroups
+        .filter(g => userGroupIds.includes(g.id))
+        .map(g => g.name || "Groupe sans nom");
+
       return {
         username: p.username ?? `user_${uid.slice(0, 6)}`,
         moments: mCount,
         reactions: rCount,
         score: mCount * 3 + rCount,
+        groupNames: userGroups.join(", "),
       };
     })
     .sort((a, b) => b.score - a.score);
+
 
   // 5. Taux de participation par groupe
   const groupParticipation: GroupParticipation[] = filteredGroups
     .map((g) => {
       const members = filteredGroupMembers.filter((gm) => gm.group_id === g.id && filteredUserIds.has(gm.user_id));
-      const groupPhotos = photos.filter((p) => p.group_id === g.id);
+      const groupPhotos = photosForStats.filter((p) => p.group_id === g.id);
       const posters = new Set(
         groupPhotos.map((p) => p.user_id)
       );
@@ -279,7 +303,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
 
   // 6. Évolution dans le temps
   const timelineMap = new Map<string, Map<string, number>>();
-  for (const p of photos) {
+  for (const p of photosForStats) {
     const date = (p.created_at as string).slice(0, 10);
     if (!timelineMap.has(date)) timelineMap.set(date, new Map());
     const dayUsers = timelineMap.get(date)!;
@@ -304,7 +328,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   const START_TS = new Date(START_DATE).getTime();
   const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-  for (const p of photos) {
+  for (const p of photosForStats) {
     const ts = new Date(p.created_at).getTime();
     const weekIndex = Math.floor((ts - START_TS) / WEEK_MS);
     if (!photosByWeekAndGroup.has(weekIndex)) photosByWeekAndGroup.set(weekIndex, new Map());
@@ -357,9 +381,10 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
         username: userMap.get(gm.user_id) ?? `user_${gm.user_id.slice(0, 6)}`,
         role: gm.role,
         joined_at: gm.joined_at,
-      }));
-    const photo_count = rawPhotos.filter((p) => p.group_id === g.id).length;
-    return {
+        }));
+        const photo_count = rawPhotos.filter((p) => p.group_id === g.id).length;
+        return {
+
       id: g.id,
       name: g.name ?? `Groupe ${g.id.slice(0, 6)}`,
       created_at: g.created_at,
@@ -387,14 +412,14 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       .map((p) => ({ id: p.id, username: p.username ?? `user_${p.id.slice(0, 6)}` }))
       .sort((a, b) => a.username.localeCompare(b.username)),
     groupDetails,
-    photos: photos.map(p => ({
+    photos: rawPhotos.map(p => ({
       date: (p.created_at as string).slice(0, 10),
       group_id: p.group_id,
       user_id: p.user_id,
       username: userMap.get(p.user_id) ?? "Inconnu",
     })),
     stats: {
-      totalMoments: photos.length,
+      totalMoments: photosForStats.length,
       totalUsers: filteredProfiles.length,
       totalGroups: filteredGroups.length,
       activeGroups: activeGroupsCount,
