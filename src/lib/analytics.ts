@@ -68,6 +68,13 @@ export interface GroupDetail {
   photo_count: number;
 }
 
+export interface SimplifiedPhoto {
+  date: string;
+  group_id: string;
+  user_id: string;
+  username: string;
+}
+
 export interface AnalyticsData {
   momentsByUser: MomentsByUser[];
   typeDistribution: TypeDistribution[];
@@ -79,6 +86,7 @@ export interface AnalyticsData {
   groups: GroupItem[];
   users: UserItem[];
   groupDetails: GroupDetail[];
+  photos: SimplifiedPhoto[];
   stats: {
     totalMoments: number;
     totalUsers: number;
@@ -379,6 +387,12 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       .map((p) => ({ id: p.id, username: p.username ?? `user_${p.id.slice(0, 6)}` }))
       .sort((a, b) => a.username.localeCompare(b.username)),
     groupDetails,
+    photos: photos.map(p => ({
+      date: (p.created_at as string).slice(0, 10),
+      group_id: p.group_id,
+      user_id: p.user_id,
+      username: userMap.get(p.user_id) ?? "Inconnu",
+    })),
     stats: {
       totalMoments: photos.length,
       totalUsers: filteredProfiles.length,

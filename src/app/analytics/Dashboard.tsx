@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -87,12 +87,43 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
 
   const [visibleMembers, setVisibleMembers] = useState(10);
   const [showTable, setShowTable] = useState(false);
+  const [selectedGroupForTimeline, setSelectedGroupForTimeline] = useState<string>("all");
 
   const {
     stats, momentsByUser, typeDistribution,
     dailyDistribution, hourlyDistribution, activeMembers,
-    groupParticipation, momentTimeline,
+    groupParticipation, momentTimeline, photos, groups
   } = data;
+
+  const filteredTimeline = useMemo(() => {
+    if (selectedGroupForTimeline === "all") return momentTimeline;
+
+    const groupPhotos = photos.filter(p => p.group_id === selectedGroupForTimeline);
+    const timelineMap = new Map<string, Map<string, number>>();
+    
+    groupPhotos.forEach(p => {
+      if (!timelineMap.has(p.date)) timelineMap.set(p.date, new Map());
+      const dayUsers = timelineMap.get(p.date)!;
+      dayUsers.set(p.user_id, (dayUsers.get(p.user_id) ?? 0) + 1);
+    });
+
+    return [...timelineMap.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, dayUsers]) => {
+        const totalCount = [...dayUsers.values()].reduce((a, b) => a + b, 0);
+        const topUsers = [...dayUsers.entries()]
+          .map(([uid, count]) => {
+            const photo = groupPhotos.find(gp => gp.user_id === uid);
+            return {
+              username: photo?.username ?? uid.slice(0, 8),
+              count,
+            };
+          })
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+        return { date, count: totalCount, topUsers };
+      });
+  }, [selectedGroupForTimeline, momentTimeline, photos]);
 
   const maxHour = Math.max(...hourlyDistribution.map((h) => h.count));
   const maxDay = Math.max(...dailyDistribution.map((d) => d.count));
@@ -218,10 +249,22 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
       {/* Timeline — pleine largeur au-dessus du masonry */}
       <div className={styles.timelineWrap}>
         <div className={`${styles.card} glass-effect`}>
-          <p className={styles.cardLabel}>Évolution dans le temps</p>
-          {momentTimeline.length === 0 ? <Empty /> : (
+          <div className={styles.cardLabel}>
+            <span>Évolution dans le temps</span>
+            <select 
+              className={styles.groupSelect}
+              value={selectedGroupForTimeline}
+              onChange={(e) => setSelectedGroupForTimeline(e.target.value)}
+            >
+              <option value="all">Tous les groupes</option>
+              {groups.map(g => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+          </div>
+          {filteredTimeline.length === 0 ? <Empty /> : (
             <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={momentTimeline}>
+              <LineChart data={filteredTimeline}>
                 <CartesianGrid strokeDasharray="3 3" stroke={GREY[500]} />
                 <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 11 }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fill: "#888", fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />

@@ -1153,3 +1153,27 @@
   margin-top: -0.5rem;
 }
 
+
+.groupSelect {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--white);
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.groupSelect:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.groupSelect option {
+  background: #0a0a0a;
+  color: #fff;
+}
+
