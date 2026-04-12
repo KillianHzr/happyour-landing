@@ -504,3 +504,10 @@
   z-index: 10;
 }
 
+
+.revealSubInfo {
+  font-size: 0.85rem;
+  color: var(--grey);
+  margin-top: 0.4rem;
+}
+

@@ -39,6 +39,7 @@ function getMediaUrl(imagePath: string | null): string | null {
 function getRevealStatus(now: Date): {
   isOpen: boolean;
   nextReveal: Date;
+  revealEnd: Date;
   contentStart: Date;
 } {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -61,11 +62,25 @@ function getRevealStatus(now: Date): {
   const day = nextReveal.getDay();
   const diff = (7 - day) % 7;
   nextReveal.setDate(nextReveal.getDate() + diff);
-  if (nextReveal <= now) nextReveal.setDate(nextReveal.getDate() + 7);
+  if (nextReveal <= now && !isOpen) nextReveal.setDate(nextReveal.getDate() + 7);
+
+  // Find corresponding Monday 12h
+  const revealEnd = new Date(nextReveal);
+  if (isOpen) {
+    // If it's Sunday 20h-24h, the end is tomorrow (Monday) at 12h
+    // If it's Monday 0h-12h, the end is today (Monday) at 12h
+    // In both cases, if isOpen is true, the next Monday 12h relative to the "Sunday 20h" start is:
+    revealEnd.setDate(nextReveal.getDate() + 1);
+    revealEnd.setHours(12);
+  } else {
+    // Otherwise it's just the Monday following nextReveal
+    revealEnd.setDate(nextReveal.getDate() + 1);
+    revealEnd.setHours(12);
+  }
 
   const contentStart = new Date(nextReveal.getTime() - 7 * 24 * 3600 * 1000);
 
-  return { isOpen, nextReveal, contentStart };
+  return { isOpen, nextReveal, revealEnd, contentStart };
 }
 
 function formatCountdown(ms: number): string {
@@ -104,7 +119,7 @@ export default function RevealApp() {
     return () => clearInterval(id);
   }, []);
 
-  const { isOpen, nextReveal, contentStart } = useMemo(() => getRevealStatus(now), [now]);
+  const { isOpen, nextReveal, revealEnd, contentStart } = useMemo(() => getRevealStatus(now), [now]);
 
   // Auth
   const [user, setUser] = useState<User | null>(null);
@@ -223,12 +238,40 @@ export default function RevealApp() {
   }, [user, contentStart, activeGroupId]);
 
   useEffect(() => {
-    if (user) fetchRevealData();
-  }, [user, fetchRevealData]);
+    if (user && isOpen) fetchRevealData();
+  }, [user, isOpen, fetchRevealData]);
 
   if (!authReady) {
     return (
       <main className={styles.page}>
+        <div className={styles.bgGlow1} />
+        <div className={styles.bgGlow2} />
+      </main>
+    );
+  }
+
+  /* ── COUNTDOWN VIEW ── */
+  if (!isOpen) {
+    const ms = nextReveal.getTime() - now.getTime();
+    return (
+      <main className={styles.page}>
+        <header className={styles.header}>
+          <div className={styles.logo}>HappyOur</div>
+          {user && (
+            <button onClick={handleLogout} className={styles.logoutBtn}>
+              Déconnexion
+            </button>
+          )}
+        </header>
+
+        <div className={styles.countdownWrap}>
+          <p className={styles.countdownLabel}>Prochain reveal dans</p>
+          <div className={styles.countdownTimer}>{formatCountdown(ms)}</div>
+          <p className={styles.countdownSub}>
+            Ouverture chaque dimanche à 20h · Jusqu'au lundi à 12h
+          </p>
+        </div>
+
         <div className={styles.bgGlow1} />
         <div className={styles.bgGlow2} />
       </main>
@@ -294,17 +337,17 @@ export default function RevealApp() {
     ? moments.filter((m) => m.group_id === activeGroupId)
     : moments;
 
+  const msRemaining = revealEnd.getTime() - now.getTime();
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
         <div className={styles.logo}>HappyOur</div>
         <div className={styles.headerRight}>
-          {isOpen && (
-            <div className={styles.liveBadge}>
-              <span className={styles.liveDot} />
-              Live
-            </div>
-          )}
+          <div className={styles.liveBadge}>
+            <span className={styles.liveDot} />
+            {formatCountdown(msRemaining)}
+          </div>
           <button onClick={handleLogout} className={styles.logoutBtn}>
             Déconnexion
           </button>
@@ -313,9 +356,12 @@ export default function RevealApp() {
 
       <div className={styles.revealHero}>
         <h1 className={styles.revealTitle}>
-          {isOpen ? "Reveal en cours 🎉" : "Tes moments de la semaine"}
+          Reveal en cours 🎉
         </h1>
         <p className={styles.revealSub}>
+          Fermeture dans <strong>{formatCountdown(msRemaining)}</strong>
+        </p>
+        <p className={styles.revealSubInfo}>
           {groups.find(g => g.id === activeGroupId)?.name || "Chargement..."} · {filteredMoments.length} moment{filteredMoments.length !== 1 ? "s" : ""}
         </p>
       </div>
