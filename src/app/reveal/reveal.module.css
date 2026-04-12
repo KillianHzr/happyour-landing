@@ -420,20 +420,30 @@
   word-break: break-word;
 }
 
-/* Photo / video wrapper */
+/* Photo / video wrapper — ratio 9:16 comme l'app */
 .mediaWrap {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.media {
+.mediaPhotoVideo {
   width: 100%;
-  border-radius: 12px;
+  aspect-ratio: 9 / 16;
+  border-radius: 16px;
   display: block;
   background: rgba(255, 255, 255, 0.04);
-  max-height: 500px;
   object-fit: cover;
+}
+
+/* Dessin — ratio 3:4 avec fill (pas de crop), fond blanc comme l'app */
+.mediaDrawing {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 16px;
+  display: block;
+  background: #ffffff;
+  object-fit: fill;
 }
 
 /* Audio */

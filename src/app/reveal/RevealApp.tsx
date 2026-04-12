@@ -489,20 +489,33 @@ function MomentCard({ moment }: { moment: Moment }) {
             <video
               controls
               src={moment.url ?? undefined}
-              className={styles.media}
+              className={styles.mediaPhotoVideo}
               playsInline
             />
             {moment.note && <p className={styles.note}>{moment.note}</p>}
           </div>
         )}
 
-        {(moment.type === "photo" || moment.type === "drawing") && (
+        {moment.type === "photo" && (
           <div className={styles.mediaWrap}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={moment.url ?? undefined}
               alt=""
-              className={styles.media}
+              className={styles.mediaPhotoVideo}
+              loading="lazy"
+            />
+            {moment.note && <p className={styles.note}>{moment.note}</p>}
+          </div>
+        )}
+
+        {moment.type === "drawing" && (
+          <div className={styles.mediaWrap}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={moment.url ?? undefined}
+              alt=""
+              className={styles.mediaDrawing}
               loading="lazy"
             />
             {moment.note && <p className={styles.note}>{moment.note}</p>}
