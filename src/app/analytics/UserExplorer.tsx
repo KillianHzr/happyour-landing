@@ -20,6 +20,7 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<UserItem | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string>("all");
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(10);
@@ -41,6 +42,7 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
 
   const selectUser = useCallback(async (u: UserItem) => {
     setSelected(u);
+    setSelectedGroup("all");
     setOpen(false);
     setQuery(u.username);
     setVisible(10);
@@ -54,12 +56,19 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
 
   function closeModal() {
     setSelected(null);
+    setSelectedGroup("all");
     setPhotos([]);
     setVisible(10);
     setQuery("");
   }
 
-  const displayed = photos.slice(0, visible);
+  const userGroups = Array.from(new Set(photos.map(p => p.group_name).filter(Boolean))) as string[];
+  
+  const filteredPhotos = selectedGroup === "all" 
+    ? photos 
+    : photos.filter(p => p.group_name === selectedGroup);
+
+  const displayed = filteredPhotos.slice(0, visible);
 
   return (
     <div className={`${styles.cardFull} ${styles.card} glass-effect`}>
@@ -106,11 +115,29 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
                 <div className={styles.phoneLoading}>Chargement…</div>
               ) : (
                 <div className={styles.dayView}>
-                  <p className={styles.dayViewTitle}>
-                    {photos.length} moment{photos.length !== 1 ? "s" : ""} au total
-                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <p className={styles.dayViewTitle} style={{ margin: 0 }}>
+                      {filteredPhotos.length} moment{filteredPhotos.length !== 1 ? "s" : ""}
+                    </p>
+                    {userGroups.length > 1 && (
+                      <select 
+                        className={styles.groupSelect} 
+                        style={{ fontSize: '0.7rem', padding: '2px 8px' }}
+                        value={selectedGroup}
+                        onChange={(e) => {
+                          setSelectedGroup(e.target.value);
+                          setVisible(10);
+                        }}
+                      >
+                        <option value="all">Tous les groupes</option>
+                        {userGroups.map(gn => (
+                          <option key={gn} value={gn}>{gn}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
 
-                  {photos.length === 0 && (
+                  {filteredPhotos.length === 0 && (
                     <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, padding: "12px 0" }}>
                       Aucun moment
                     </p>
@@ -119,7 +146,7 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
                   <div className={styles.dayGrid}>
                     {displayed.map((p) => (
                       <div key={p.id}>
-                        {p.group_name && (
+                        {p.group_name && selectedGroup === "all" && (
                           <div className={styles.momentDateLabel}>{p.group_name}</div>
                         )}
                         <MomentItem photo={p} />
@@ -127,7 +154,7 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
                     ))}
                   </div>
 
-                  {visible < photos.length && (
+                  {visible < filteredPhotos.length && (
                     <button
                       onClick={() => setVisible((v) => v + 10)}
                       style={{
@@ -142,7 +169,7 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
                         cursor: "pointer",
                       }}
                     >
-                      Voir plus ({photos.length - visible} restants)
+                      Voir plus ({filteredPhotos.length - visible} restants)
                     </button>
                   )}
                 </div>
