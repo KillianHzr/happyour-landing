@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { type User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase-client";
 import styles from "./reveal.module.css";
@@ -126,13 +126,32 @@ interface Group {
 
 /* ─── Main component ─── */
 export default function RevealApp() {
+  // ── Clock pour les compteurs (volatile, chaque seconde) ──
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const { isOpen, nextReveal, revealEnd, contentStart } = useMemo(() => getRevealStatus(now), [now]);
+  // isOpen / nextReveal / revealEnd recalculés chaque seconde pour les affichages
+  const { isOpen, nextReveal, revealEnd } = useMemo(() => {
+    const s = getRevealStatus(now);
+    return { isOpen: s.isOpen, nextReveal: s.nextReveal, revealEnd: s.revealEnd };
+  }, [now]);
+
+  // contentStart est STABLE pour toute la durée d'une fenêtre de reveal.
+  // On le stocke dans un ref pour ne pas recréer fetchRevealData à chaque seconde.
+  const contentStartISORef = useRef<string>(
+    getRevealStatus(new Date()).contentStart.toISOString()
+  );
+  // Mise à jour uniquement quand la fenêtre s'ouvre (transition false→true)
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current) {
+      contentStartISORef.current = getRevealStatus(new Date()).contentStart.toISOString();
+    }
+    wasOpenRef.current = isOpen;
+  }, [isOpen]);
 
   // Auth
   const [user, setUser] = useState<User | null>(null);
@@ -185,7 +204,7 @@ export default function RevealApp() {
     setDataLoading(true);
 
     try {
-      // 1. Get user groups
+      // 1. Groupes de l'utilisateur
       const { data: memberships } = await supabase
         .from("group_members")
         .select("group_id")
@@ -196,14 +215,19 @@ export default function RevealApp() {
       if (groupIds.length === 0) {
         setGroups([]);
         setMoments([]);
-        setDataLoading(false);
         return;
       }
 
-      // 2. Fetch groups info and profiles
-      const [groupsRes, profilesRes] = await Promise.all([
+      // 2. Infos groupes, profils et moments en parallèle
+      const [groupsRes, profilesRes, photosRes] = await Promise.all([
         supabase.from("groups").select("id, name").in("id", groupIds),
         supabase.from("profiles").select("id, username"),
+        supabase
+          .from("photos")
+          .select("id, user_id, group_id, image_path, note, created_at")
+          .in("group_id", groupIds)
+          .gte("created_at", contentStartISORef.current)
+          .order("created_at", { ascending: true }),
       ]);
 
       const fetchedGroups: Group[] = (groupsRes.data ?? []).map((g) => ({
@@ -211,27 +235,18 @@ export default function RevealApp() {
         name: g.name ?? g.id,
       }));
       setGroups(fetchedGroups);
-      
-      // Auto-selection logic
-      if (!activeGroupId && fetchedGroups.length > 0) {
-        setActiveGroupId(fetchedGroups[0].id);
-      } else if (activeGroupId && !fetchedGroups.find(g => g.id === activeGroupId)) {
-        setActiveGroupId(fetchedGroups[0]?.id ?? null);
-      }
+
+      // Sélection initiale du groupe — on ne remplace jamais une sélection existante
+      setActiveGroupId((prev) => {
+        if (prev && fetchedGroups.find((g) => g.id === prev)) return prev;
+        return fetchedGroups[0]?.id ?? null;
+      });
 
       const userMap = new Map(
         (profilesRes.data ?? []).map((p) => [p.id, p.username ?? "?"])
       );
 
-      // 3. Fetch moments for the relevant groups
-      const { data: photosData } = await supabase
-        .from("photos")
-        .select("id, user_id, group_id, image_path, note, created_at")
-        .in("group_id", groupIds)
-        .gte("created_at", contentStart.toISOString())
-        .order("created_at", { ascending: true });
-
-      const fetchedMoments: Moment[] = (photosData ?? []).map((p) => ({
+      const fetchedMoments: Moment[] = (photosRes.data ?? []).map((p) => ({
         id: p.id,
         user_id: p.user_id,
         group_id: p.group_id,
@@ -248,7 +263,11 @@ export default function RevealApp() {
     } finally {
       setDataLoading(false);
     }
-  }, [user, contentStart, activeGroupId]);
+  // contentStartISORef et activeGroupId sont intentionnellement exclus des deps :
+  // - contentStartISORef est un ref (stable par définition)
+  // - activeGroupId dans les deps créait une boucle infinie (fetch → setActiveGroupId → refetch)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   useEffect(() => {
     if (user && isOpen) fetchRevealData();
