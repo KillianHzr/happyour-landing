@@ -1,20 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { createClient, type User } from "@supabase/supabase-js";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { type User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase-client";
 import styles from "./reveal.module.css";
 
-/* ─── Supabase client ─── */
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+/* ─── Media helpers ─── */
 const R2_BASE = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? "").replace(/\/$/, "");
 
-function makeSupabase() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
-
-/* ─── Media helpers ─── */
 type MomentType = "photo" | "video" | "audio" | "drawing" | "text";
 
 const TYPE_LABELS: Record<MomentType, string> = {
@@ -43,31 +36,6 @@ function getMediaUrl(imagePath: string | null): string | null {
 
 /* ─── Reveal window logic ─── */
 
-/** Finds the next UTC timestamp where Europe/Paris time is Sunday at 20:00 */
-function getNextSunday20Paris(from: Date): Date {
-  for (let dayOffset = 0; dayOffset <= 8; dayOffset++) {
-    const base = new Date(from);
-    base.setUTCDate(base.getUTCDate() + dayOffset);
-    // Paris is UTC+1 (CET) or UTC+2 (CEST), so 20h Paris = 18h or 19h UTC
-    for (const utcHour of [17, 18, 19]) {
-      const candidate = new Date(
-        Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), utcHour, 0, 0, 0)
-      );
-      if (candidate <= from) continue;
-      const parts = new Intl.DateTimeFormat("en-US", {
-        timeZone: "Europe/Paris",
-        weekday: "long",
-        hour: "2-digit",
-        hour12: false,
-      }).formatToParts(candidate);
-      const weekday = parts.find((p) => p.type === "weekday")?.value;
-      const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "-1");
-      if (weekday === "Sunday" && hour === 20) return candidate;
-    }
-  }
-  return new Date(from.getTime() + 7 * 24 * 3600 * 1000);
-}
-
 function getRevealStatus(now: Date): {
   isOpen: boolean;
   nextReveal: Date;
@@ -83,11 +51,18 @@ function getRevealStatus(now: Date): {
   const weekday = parts.find((p) => p.type === "weekday")?.value;
   const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0");
 
-  const isOpen =
-    (weekday === "Sunday" && hour >= 20) || (weekday === "Monday" && hour < 12);
+  const isOpen = (weekday === "Sunday" && hour >= 20) || (weekday === "Monday" && hour < 12);
 
-  const nextReveal = getNextSunday20Paris(now);
-  // Content covers the week PRECEDING the current/next reveal window
+  // Find next Sunday 20h
+  const nextReveal = new Date(now);
+  nextReveal.setSeconds(0, 0);
+  nextReveal.setMinutes(0);
+  nextReveal.setHours(20);
+  const day = nextReveal.getDay();
+  const diff = (7 - day) % 7;
+  nextReveal.setDate(nextReveal.getDate() + diff);
+  if (nextReveal <= now) nextReveal.setDate(nextReveal.getDate() + 7);
+
   const contentStart = new Date(nextReveal.getTime() - 7 * 24 * 3600 * 1000);
 
   return { isOpen, nextReveal, contentStart };
@@ -123,16 +98,13 @@ interface Group {
 
 /* ─── Main component ─── */
 export default function RevealApp() {
-  const [supabase] = useState(makeSupabase);
-
-  // Clock — ticks every second for countdown
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const { isOpen, nextReveal, contentStart } = getRevealStatus(now);
+  const { isOpen, nextReveal, contentStart } = useMemo(() => getRevealStatus(now), [now]);
 
   // Auth
   const [user, setUser] = useState<User | null>(null);
@@ -148,7 +120,7 @@ export default function RevealApp() {
       setUser(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, []);
 
   // Login form
   const [email, setEmail] = useState("");
@@ -184,84 +156,79 @@ export default function RevealApp() {
     if (!supabase || !user) return;
     setDataLoading(true);
 
-    const [membershipsRes, photosRes] = await Promise.all([
-      supabase.from("group_members").select("group_id").eq("user_id", user.id),
-      supabase
+    try {
+      // 1. Get user groups
+      const { data: memberships } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", user.id);
+
+      const groupIds = (memberships ?? []).map((m) => m.group_id);
+
+      if (groupIds.length === 0) {
+        setGroups([]);
+        setMoments([]);
+        setDataLoading(false);
+        return;
+      }
+
+      // 2. Fetch groups info and profiles
+      const [groupsRes, profilesRes] = await Promise.all([
+        supabase.from("groups").select("id, name").in("id", groupIds),
+        supabase.from("profiles").select("id, username"),
+      ]);
+
+      const fetchedGroups: Group[] = (groupsRes.data ?? []).map((g) => ({
+        id: g.id,
+        name: g.name ?? g.id,
+      }));
+      setGroups(fetchedGroups);
+      
+      // Auto-selection logic
+      if (!activeGroupId && fetchedGroups.length > 0) {
+        setActiveGroupId(fetchedGroups[0].id);
+      } else if (activeGroupId && !fetchedGroups.find(g => g.id === activeGroupId)) {
+        setActiveGroupId(fetchedGroups[0]?.id ?? null);
+      }
+
+      const userMap = new Map(
+        (profilesRes.data ?? []).map((p) => [p.id, p.username ?? "?"])
+      );
+
+      // 3. Fetch moments for the relevant groups
+      const { data: photosData } = await supabase
         .from("photos")
         .select("id, user_id, group_id, image_path, note, created_at")
+        .in("group_id", groupIds)
         .gte("created_at", contentStart.toISOString())
-        .order("created_at", { ascending: false }),
-    ]);
+        .order("created_at", { ascending: false });
 
-    const groupIds = (membershipsRes.data ?? []).map((m) => m.group_id);
+      const fetchedMoments: Moment[] = (photosData ?? []).map((p) => ({
+        id: p.id,
+        user_id: p.user_id,
+        group_id: p.group_id,
+        username: userMap.get(p.user_id) ?? "?",
+        type: inferType(p.image_path),
+        url: getMediaUrl(p.image_path),
+        note: p.note ?? null,
+        created_at: p.created_at,
+      }));
 
-    const [groupsRes, profilesRes] = await Promise.all([
-      supabase.from("groups").select("id, name").in("id", groupIds),
-      supabase.from("profiles").select("id, username"),
-    ]);
+      setMoments(fetchedMoments);
+    } catch (err) {
+      console.error("Reveal fetch error:", err);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [user, contentStart, activeGroupId]);
 
-    const fetchedGroups: Group[] = (groupsRes.data ?? []).map((g) => ({
-      id: g.id,
-      name: g.name ?? g.id,
-    }));
-    setGroups(fetchedGroups);
-    setActiveGroupId((prev) => prev ?? fetchedGroups[0]?.id ?? null);
-
-    const userMap = new Map(
-      (profilesRes.data ?? []).map((p) => [p.id, p.username ?? "?"])
-    );
-
-    const fetchedMoments: Moment[] = (photosRes.data ?? []).map((p) => ({
-      id: p.id,
-      user_id: p.user_id,
-      group_id: p.group_id,
-      username: userMap.get(p.user_id) ?? "?",
-      type: inferType(p.image_path),
-      url: getMediaUrl(p.image_path),
-      note: p.note ?? null,
-      created_at: p.created_at,
-    }));
-
-    setMoments(fetchedMoments);
-    setDataLoading(false);
-  }, [supabase, user, contentStart]);
-
-  // Fetch when the reveal is open and user is logged in
   useEffect(() => {
-    if (isOpen && user) fetchRevealData();
-  }, [isOpen, user]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (user) fetchRevealData();
+  }, [user, fetchRevealData]);
 
   if (!authReady) {
     return (
       <main className={styles.page}>
-        <div className={styles.bgGlow1} />
-        <div className={styles.bgGlow2} />
-      </main>
-    );
-  }
-
-  /* ── COUNTDOWN VIEW ── */
-  if (!isOpen) {
-    const ms = nextReveal.getTime() - now.getTime();
-    return (
-      <main className={styles.page}>
-        <header className={styles.header}>
-          <div className={styles.logo}>HappyOur</div>
-          {user && (
-            <button onClick={handleLogout} className={styles.logoutBtn}>
-              Déconnexion
-            </button>
-          )}
-        </header>
-
-        <div className={styles.countdownWrap}>
-          <p className={styles.countdownLabel}>Prochain reveal dans</p>
-          <div className={styles.countdownTimer}>{formatCountdown(ms)}</div>
-          <p className={styles.countdownSub}>
-            Ouverture chaque dimanche à 20h · Jusqu'au lundi à 12h
-          </p>
-        </div>
-
         <div className={styles.bgGlow1} />
         <div className={styles.bgGlow2} />
       </main>
@@ -274,21 +241,23 @@ export default function RevealApp() {
       <main className={styles.page}>
         <header className={styles.header}>
           <div className={styles.logo}>HappyOur</div>
-          <div className={styles.liveBadge}>
-            <span className={styles.liveDot} />
-            Reveal en cours
-          </div>
+          {isOpen && (
+            <div className={styles.liveBadge}>
+              <span className={styles.liveDot} />
+              Reveal Live
+            </div>
+          )}
         </header>
 
         <div className={styles.loginWrap}>
           <form onSubmit={handleLogin} className={styles.loginForm}>
-            <div className={styles.loginEmoji}>🎉</div>
-            <h2 className={styles.loginTitle}>Le reveal est ouvert !</h2>
-            <p className={styles.loginSub}>Connecte-toi avec ton compte HappyOur</p>
+            <div className={styles.loginEmoji}>🤫</div>
+            <h2 className={styles.loginTitle}>Connecte-toi pour voir</h2>
+            <p className={styles.loginSub}>Utilise tes identifiants de l'application</p>
 
             <input
               type="email"
-              placeholder="Adresse email"
+              placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={styles.input}
@@ -309,7 +278,7 @@ export default function RevealApp() {
             {loginError && <p className={styles.error}>{loginError}</p>}
 
             <button type="submit" className={styles.loginBtn} disabled={loginLoading}>
-              {loginLoading ? "Connexion…" : "Voir le reveal →"}
+              {loginLoading ? "Connexion…" : "Découvrir →"}
             </button>
           </form>
         </div>
@@ -330,10 +299,12 @@ export default function RevealApp() {
       <header className={styles.header}>
         <div className={styles.logo}>HappyOur</div>
         <div className={styles.headerRight}>
-          <div className={styles.liveBadge}>
-            <span className={styles.liveDot} />
-            Reveal en cours
-          </div>
+          {isOpen && (
+            <div className={styles.liveBadge}>
+              <span className={styles.liveDot} />
+              Live
+            </div>
+          )}
           <button onClick={handleLogout} className={styles.logoutBtn}>
             Déconnexion
           </button>
@@ -341,8 +312,12 @@ export default function RevealApp() {
       </header>
 
       <div className={styles.revealHero}>
-        <h1 className={styles.revealTitle}>Reveal de la semaine 🎉</h1>
-        <p className={styles.revealSub}>Tous vos moments partagés depuis dimanche 20h</p>
+        <h1 className={styles.revealTitle}>
+          {isOpen ? "Reveal en cours 🎉" : "Tes moments de la semaine"}
+        </h1>
+        <p className={styles.revealSub}>
+          {groups.find(g => g.id === activeGroupId)?.name || "Chargement..."} · {filteredMoments.length} moment{filteredMoments.length !== 1 ? "s" : ""}
+        </p>
       </div>
 
       {groups.length > 1 && (
@@ -359,10 +334,14 @@ export default function RevealApp() {
         </div>
       )}
 
-      {dataLoading ? (
+      {dataLoading && moments.length === 0 ? (
         <div className={styles.loadingRow}>
           <div className={styles.spinner} />
-          <span>Chargement des moments…</span>
+          <span>Chargement des souvenirs…</span>
+        </div>
+      ) : groups.length === 0 ? (
+        <div className={styles.empty}>
+          Tu n'appartiens à aucun groupe pour le moment.
         </div>
       ) : filteredMoments.length === 0 ? (
         <div className={styles.empty}>
@@ -376,6 +355,12 @@ export default function RevealApp() {
         </div>
       )}
 
+      {!isOpen && (
+        <div className={styles.nextRevealNote}>
+          Prochain Reveal Live dimanche à 20h00
+        </div>
+      )}
+
       <div className={styles.bgGlow1} />
       <div className={styles.bgGlow2} />
     </main>
@@ -385,7 +370,7 @@ export default function RevealApp() {
 /* ─── Moment card ─── */
 function MomentCard({ moment }: { moment: Moment }) {
   const timeStr = new Date(moment.created_at).toLocaleString("fr-FR", {
-    weekday: "short",
+    weekday: "long",
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -397,7 +382,7 @@ function MomentCard({ moment }: { moment: Moment }) {
       <div className={styles.cardMeta}>
         <div className={styles.avatar}>{moment.username[0]?.toUpperCase()}</div>
         <div className={styles.cardInfo}>
-          <span className={styles.username}>{moment.username}</span>
+          <span className={styles.username}>@{moment.username}</span>
           <span className={styles.time}>{timeStr}</span>
         </div>
         <span className={styles.typeBadge}>{TYPE_LABELS[moment.type]}</span>
@@ -430,9 +415,10 @@ function MomentCard({ moment }: { moment: Moment }) {
 
         {(moment.type === "photo" || moment.type === "drawing") && (
           <div className={styles.mediaWrap}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={moment.url ?? undefined}
-              alt={`Moment de ${moment.username}`}
+              alt=""
               className={styles.media}
               loading="lazy"
             />

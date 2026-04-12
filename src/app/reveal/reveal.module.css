@@ -489,3 +489,18 @@
   z-index: 0;
   pointer-events: none;
 }
+
+.nextRevealNote {
+  margin-top: 4rem;
+  padding: 1rem 2rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: 100px;
+  color: var(--grey);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  z-index: 10;
+}
+
