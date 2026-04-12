@@ -36,6 +36,34 @@ function getMediaUrl(imagePath: string | null): string | null {
 
 /* ─── Reveal window logic ─── */
 
+/**
+ * Trouve le prochain dimanche 20h00 heure de Paris, exprimé en UTC.
+ * Itère heure par heure pour gérer correctement le changement d'heure (DST).
+ */
+function getNextSunday20Paris(from: Date): Date {
+  for (let dayOffset = 0; dayOffset <= 8; dayOffset++) {
+    const base = new Date(from);
+    base.setUTCDate(base.getUTCDate() + dayOffset);
+    // Paris = UTC+1 (CET) ou UTC+2 (CEST) → 20h Paris = 18h ou 19h UTC
+    for (const utcHour of [17, 18, 19]) {
+      const candidate = new Date(
+        Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), utcHour, 0, 0, 0)
+      );
+      if (candidate <= from) continue;
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Europe/Paris",
+        weekday: "long",
+        hour: "2-digit",
+        hour12: false,
+      }).formatToParts(candidate);
+      const weekday = parts.find((p) => p.type === "weekday")?.value;
+      const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "-1");
+      if (weekday === "Sunday" && hour === 20) return candidate;
+    }
+  }
+  return new Date(from.getTime() + 7 * 24 * 3600 * 1000);
+}
+
 function getRevealStatus(now: Date): {
   isOpen: boolean;
   nextReveal: Date;
@@ -54,31 +82,16 @@ function getRevealStatus(now: Date): {
 
   const isOpen = (weekday === "Sunday" && hour >= 20) || (weekday === "Monday" && hour < 12);
 
-  // Find next Sunday 20h
-  const nextReveal = new Date(now);
-  nextReveal.setSeconds(0, 0);
-  nextReveal.setMinutes(0);
-  nextReveal.setHours(20);
-  const day = nextReveal.getDay();
-  const diff = (7 - day) % 7;
-  nextReveal.setDate(nextReveal.getDate() + diff);
-  if (nextReveal <= now && !isOpen) nextReveal.setDate(nextReveal.getDate() + 7);
+  // Prochain dimanche 20h Paris (UTC-correct, gère le DST)
+  const nextReveal = getNextSunday20Paris(now);
 
-  // Find corresponding Monday 12h
-  const revealEnd = new Date(nextReveal);
-  if (isOpen) {
-    // If it's Sunday 20h-24h, the end is tomorrow (Monday) at 12h
-    // If it's Monday 0h-12h, the end is today (Monday) at 12h
-    // In both cases, if isOpen is true, the next Monday 12h relative to the "Sunday 20h" start is:
-    revealEnd.setDate(nextReveal.getDate() + 1);
-    revealEnd.setHours(12);
-  } else {
-    // Otherwise it's just the Monday following nextReveal
-    revealEnd.setDate(nextReveal.getDate() + 1);
-    revealEnd.setHours(12);
-  }
-
+  // Le contenu couvre la semaine qui précède le prochain reveal
+  // = le dimanche 20h Paris qui vient de passer (ou qui est en cours si fenêtre ouverte)
   const contentStart = new Date(nextReveal.getTime() - 7 * 24 * 3600 * 1000);
+
+  // La fenêtre dure 16h : dimanche 20h → lundi 12h
+  // revealEnd = contentStart + 16h (toujours correct, fenêtre ouverte ou non)
+  const revealEnd = new Date(contentStart.getTime() + 16 * 3600 * 1000);
 
   return { isOpen, nextReveal, revealEnd, contentStart };
 }
@@ -216,7 +229,7 @@ export default function RevealApp() {
         .select("id, user_id, group_id, image_path, note, created_at")
         .in("group_id", groupIds)
         .gte("created_at", contentStart.toISOString())
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: true });
 
       const fetchedMoments: Moment[] = (photosData ?? []).map((p) => ({
         id: p.id,
