@@ -85,13 +85,15 @@ function getRevealStatus(now: Date): {
   // Prochain dimanche 20h Paris (UTC-correct, gère le DST)
   const nextReveal = getNextSunday20Paris(now);
 
-  // Le contenu couvre la semaine qui précède le prochain reveal
-  // = le dimanche 20h Paris qui vient de passer (ou qui est en cours si fenêtre ouverte)
-  const contentStart = new Date(nextReveal.getTime() - 7 * 24 * 3600 * 1000);
+  // Le dimanche 20h qui vient d'ouvrir la fenêtre courante (= nextReveal - 7j)
+  const revealWindowStart = new Date(nextReveal.getTime() - 7 * 24 * 3600 * 1000);
 
-  // La fenêtre dure 16h : dimanche 20h → lundi 12h
-  // revealEnd = contentStart + 16h (toujours correct, fenêtre ouverte ou non)
-  const revealEnd = new Date(contentStart.getTime() + 16 * 3600 * 1000);
+  // Le contenu couvre la SEMAINE PRÉCÉDENTE : du dimanche d'avant 20h → ce dimanche 20h
+  // Ex : reveal ouvert dimanche 12 avril 20h → contenu du 5 avril 20h au 12 avril 20h
+  const contentStart = new Date(revealWindowStart.getTime() - 7 * 24 * 3600 * 1000);
+
+  // La fenêtre de reveal dure 16h : dimanche 20h → lundi 12h
+  const revealEnd = new Date(revealWindowStart.getTime() + 16 * 3600 * 1000);
 
   return { isOpen, nextReveal, revealEnd, contentStart };
 }
@@ -142,7 +144,10 @@ export default function RevealApp() {
   // contentStart est STABLE pour toute la durée d'une fenêtre de reveal.
   // On le stocke dans un ref pour ne pas recréer fetchRevealData à chaque seconde.
   const contentStartISORef = useRef<string>(
-    getRevealStatus(new Date()).contentStart.toISOString()
+    (() => {
+      const s = getRevealStatus(new Date());
+      return s.contentStart.toISOString();
+    })()
   );
   // Mise à jour uniquement quand la fenêtre s'ouvre (transition false→true)
   const wasOpenRef = useRef(false);
