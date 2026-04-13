@@ -80,7 +80,7 @@ function getRevealStatus(now: Date): {
   const weekday = parts.find((p) => p.type === "weekday")?.value;
   const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0");
 
-  const isOpen = (weekday === "Sunday" && hour >= 20) || (weekday === "Monday" && hour < 12);
+  const isOpen = (weekday === "Sunday" && hour >= 20) || (weekday === "Monday" && hour < 23);
 
   // Prochain dimanche 20h Paris (UTC-correct, gère le DST)
   const nextReveal = getNextSunday20Paris(now);
@@ -92,8 +92,8 @@ function getRevealStatus(now: Date): {
   // Ex : reveal ouvert dimanche 12 avril 20h → contenu du 5 avril 20h au 12 avril 20h
   const contentStart = new Date(revealWindowStart.getTime() - 7 * 24 * 3600 * 1000);
 
-  // La fenêtre de reveal dure 16h : dimanche 20h → lundi 12h
-  const revealEnd = new Date(revealWindowStart.getTime() + 16 * 3600 * 1000);
+  // La fenêtre de reveal dure 27h : dimanche 20h → lundi 23h
+  const revealEnd = new Date(revealWindowStart.getTime() + 27 * 3600 * 1000);
 
   return { isOpen, nextReveal, revealEnd, contentStart };
 }
@@ -305,7 +305,7 @@ export default function RevealApp() {
           <p className={styles.countdownLabel}>Prochain reveal dans</p>
           <div className={styles.countdownTimer}>{formatCountdown(ms)}</div>
           <p className={styles.countdownSub}>
-            Ouverture chaque dimanche à 20h · Jusqu'au lundi à 12h
+            Ouverture chaque dimanche à 20h · Jusqu'au lundi à 23h
           </p>
         </div>
 
