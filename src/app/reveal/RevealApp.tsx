@@ -69,6 +69,7 @@ function getRevealStatus(now: Date): {
   nextReveal: Date;
   revealEnd: Date;
   contentStart: Date;
+  contentEnd: Date;
 } {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Europe/Paris",
@@ -88,14 +89,17 @@ function getRevealStatus(now: Date): {
   // Le dimanche 20h qui vient d'ouvrir la fenêtre courante (= nextReveal - 7j)
   const revealWindowStart = new Date(nextReveal.getTime() - 7 * 24 * 3600 * 1000);
 
+  // Le contenu s'arrête exactement au moment de l'ouverture du reveal (dimanche 20h Paris)
+  const contentEnd = revealWindowStart;
+
   // Le contenu couvre la SEMAINE PRÉCÉDENTE : du dimanche d'avant 20h → ce dimanche 20h
   // Ex : reveal ouvert dimanche 12 avril 20h → contenu du 5 avril 20h au 12 avril 20h
-  const contentStart = new Date(revealWindowStart.getTime() - 7 * 24 * 3600 * 1000);
+  const contentStart = new Date(contentEnd.getTime() - 7 * 24 * 3600 * 1000);
 
   // La fenêtre de reveal dure 27h : dimanche 20h → lundi 23h
   const revealEnd = new Date(revealWindowStart.getTime() + 27 * 3600 * 1000);
 
-  return { isOpen, nextReveal, revealEnd, contentStart };
+  return { isOpen, nextReveal, revealEnd, contentStart, contentEnd };
 }
 
 function formatCountdown(ms: number): string {
@@ -141,19 +145,25 @@ export default function RevealApp() {
     return { isOpen: s.isOpen, nextReveal: s.nextReveal, revealEnd: s.revealEnd };
   }, [now]);
 
-  // contentStart est STABLE pour toute la durée d'une fenêtre de reveal.
-  // On le stocke dans un ref pour ne pas recréer fetchRevealData à chaque seconde.
-  const contentStartISORef = useRef<string>(
-    (() => {
-      const s = getRevealStatus(new Date());
-      return s.contentStart.toISOString();
-    })()
-  );
+  // contentStart/End sont STABLES pour toute la durée d'une fenêtre de reveal.
+  // On les stocke dans des refs pour ne pas recréer fetchRevealData à chaque seconde.
+  const contentStartISORef = useRef<string>("");
+  const contentEndISORef = useRef<string>("");
+
+  // Initialisation au montage
+  useEffect(() => {
+    const s = getRevealStatus(new Date());
+    contentStartISORef.current = s.contentStart.toISOString();
+    contentEndISORef.current = s.contentEnd.toISOString();
+  }, []);
+
   // Mise à jour uniquement quand la fenêtre s'ouvre (transition false→true)
   const wasOpenRef = useRef(false);
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
-      contentStartISORef.current = getRevealStatus(new Date()).contentStart.toISOString();
+      const s = getRevealStatus(new Date());
+      contentStartISORef.current = s.contentStart.toISOString();
+      contentEndISORef.current = s.contentEnd.toISOString();
     }
     wasOpenRef.current = isOpen;
   }, [isOpen]);
@@ -232,6 +242,7 @@ export default function RevealApp() {
           .select("id, user_id, group_id, image_path, note, created_at")
           .in("group_id", groupIds)
           .gte("created_at", contentStartISORef.current)
+          .lte("created_at", contentEndISORef.current)
           .order("created_at", { ascending: true }),
       ]);
 
