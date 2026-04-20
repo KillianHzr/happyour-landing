@@ -90,9 +90,9 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
   const [selectedGroupForTimeline, setSelectedGroupForTimeline] = useState<string>("all");
 
   const {
-    stats, momentsByUser, typeDistribution,
+    stats, typeDistribution,
     dailyDistribution, hourlyDistribution, activeMembers,
-    groupParticipation, momentTimeline, photos, groups
+    groupParticipation, groupSizeDistribution, momentTimeline, photos, groups
   } = data;
 
   const filteredTimeline = useMemo(() => {
@@ -127,6 +127,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
 
   const maxHour = Math.max(...hourlyDistribution.map((h) => h.count));
   const maxDay = Math.max(...dailyDistribution.map((d) => d.count));
+  const maxGroupSizeCount = Math.max(...groupSizeDistribution.map((s) => s.count), 0);
 
   const exportToCSV = () => {
     let csvContent = "data:text/csv;charset=utf-8,";
@@ -191,7 +192,15 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
     });
     csvContent += "\n";
 
-    // 8. Global Group Details (Tags, Admin, etc.)
+    // 8. Group Size Distribution
+    csvContent += "SECTION: REPARTITION TAILLE GROUPES\n";
+    csvContent += "Nombre de membres,Nombre de groupes\n";
+    groupSizeDistribution.forEach(d => {
+      csvContent += `${d.size},${d.count}\n`;
+    });
+    csvContent += "\n";
+
+    // 9. Global Group Details (Tags, Admin, etc.)
     csvContent += "SECTION: DETAILS GLOBAUX DES GROUPES\n";
     csvContent += "ID,Nom,Admin,Code Invite,Membres,Posts,Date Creation\n";
     data.groupDetails.forEach(g => {
@@ -306,6 +315,36 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className={`${styles.card} glass-effect`}>
+            <p className={styles.cardLabel}>Nombre de groupes par taille (membres)</p>
+            {groupSizeDistribution.length === 0 ? <Empty /> : (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={groupSizeDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={GREY[500]} />
+                  <XAxis 
+                    dataKey="size" 
+                    tick={{ fill: "#888", fontSize: 12 }} 
+                    tickLine={false} 
+                    axisLine={false}
+                  />
+                  <YAxis tick={{ fill: "#888", fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip 
+                    contentStyle={{ background: "rgba(10,10,10,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 13 }}
+                    itemStyle={{ color: "#fff" }}
+                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                    formatter={(value) => [value, "Groupes"]}
+                    labelFormatter={(label) => `${label} membres`}
+                  />
+                  <Bar dataKey="count" name="Groupes" radius={[4, 4, 0, 0]}>
+                    {groupSizeDistribution.map((entry, i) => (
+                      <Cell key={i} fill={entry.count === maxGroupSizeCount && maxGroupSizeCount > 0 ? GREY[100] : GREY[300]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
         </div>

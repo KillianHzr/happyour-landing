@@ -43,6 +43,11 @@ export interface TimelinePoint {
   topUsers?: { username: string; count: number }[];
 }
 
+export interface GroupSizeDistribution {
+  size: number;
+  count: number;
+}
+
 export interface GroupItem {
   id: string;
   name: string;
@@ -83,6 +88,7 @@ export interface AnalyticsData {
   dailyDistribution: DailySlot[];
   activeMembers: ActiveMember[];
   groupParticipation: GroupParticipation[];
+  groupSizeDistribution: GroupSizeDistribution[];
   momentTimeline: TimelinePoint[];
   groups: GroupItem[];
   users: UserItem[];
@@ -373,6 +379,24 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
 
   const activeGroupsCount = groupParticipation.filter(g => g.totalPosts > 0).length;
 
+  // 10. Répartition de la taille des groupes
+  const sizeMap = new Map<number, number>();
+  for (const g of groupParticipation) {
+    sizeMap.set(g.total, (sizeMap.get(g.total) ?? 0) + 1);
+  }
+  const sizes = [...sizeMap.keys()];
+  const minSize = sizes.length > 0 ? Math.min(...sizes) : 0;
+  const maxSize = sizes.length > 0 ? Math.max(...sizes) : 0;
+  const groupSizeDistribution: GroupSizeDistribution[] = [];
+  if (sizes.length > 0) {
+    for (let s = minSize; s <= maxSize; s++) {
+      groupSizeDistribution.push({
+        size: s,
+        count: sizeMap.get(s) ?? 0,
+      });
+    }
+  }
+
   const groupDetails: GroupDetail[] = (rawGroups as any[]).map((g) => {
     const members = (rawGroupMembers as any[])
       .filter((gm) => gm.group_id === g.id)
@@ -403,6 +427,7 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     hourlyDistribution,
     activeMembers,
     groupParticipation,
+    groupSizeDistribution,
     momentTimeline,
     groups: rawGroups.map((g) => ({
       id: g.id,
