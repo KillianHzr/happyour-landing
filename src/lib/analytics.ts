@@ -27,6 +27,8 @@ export interface ActiveMember {
   reactions: number;
   score: number;
   groupNames: string;
+  joinedAt: string;
+  normalizedScore: number;
 }
 
 export interface GroupParticipation {
@@ -260,12 +262,22 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     reactionsByUser.set(r.user_id, (reactionsByUser.get(r.user_id) ?? 0) + 1);
   }
 
+  const NOW_TS = Date.now();
+  const START_TS_VAL = new Date(START_DATE).getTime();
+
   // Inclure TOUS les profils valides FILTRÉS, même ceux sans activité
   const activeMembers: ActiveMember[] = filteredProfiles
     .map((p) => {
       const uid = p.id;
       const mCount = momentsByUserMap.get(uid) ?? 0;
       const rCount = reactionsByUser.get(uid) ?? 0;
+      const score = mCount * 3 + rCount;
+
+      // Calcul du pro-rata (score par jour depuis l'arrivée ou START_DATE)
+      const userJoinedTS = new Date(p.created_at).getTime();
+      const effectiveStartTS = Math.max(userJoinedTS, START_TS_VAL);
+      const daysDiff = Math.max(1, (NOW_TS - effectiveStartTS) / (1000 * 60 * 60 * 24));
+      const normalizedScore = Math.round((score / daysDiff) * 100) / 100;
 
       // Get group names for this user
       const userGroupIds = rawGroupMembers
@@ -279,11 +291,13 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
         username: p.username ?? `user_${uid.slice(0, 6)}`,
         moments: mCount,
         reactions: rCount,
-        score: mCount * 3 + rCount,
+        score,
+        normalizedScore,
+        joinedAt: p.created_at,
         groupNames: userGroups.join(", "),
       };
     })
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.normalizedScore - a.normalizedScore);
 
 
   // 5. Taux de participation par groupe

@@ -178,9 +178,9 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
 
     // 6. Users
     csvContent += "SECTION: ACTIVITE UTILISATEURS\n";
-    csvContent += "Username,Groupes,Moments,Reactions,Score\n";
+    csvContent += "Username,Groupes,Moments,Reactions,Score Total,Score Actif (pro-rata),Date Arrivée\n";
     activeMembers.forEach(m => {
-      csvContent += `${m.username},"${m.groupNames.replace(/"/g, '""')}",${m.moments},${m.reactions},${m.score}\n`;
+      csvContent += `${m.username},"${m.groupNames.replace(/"/g, '""')}",${m.moments},${m.reactions},${m.score},${m.normalizedScore},${m.joinedAt}\n`;
     });
     csvContent += "\n";
 
@@ -436,7 +436,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                   <span className={styles.rankPos}>{i < 3 ? MEDALS[i] : `#${i + 1}`}</span>
                   <div className={styles.rankMemberInfo}>
                     <span className={styles.rankName}>{m.username} <span className={styles.rankGroupName}>({m.groupNames})</span></span>
-                    <span className={styles.rankMetaSub}>{m.reactions} réactions</span>
+                    <span className={styles.rankMetaSub}>Score activité : <strong>{m.normalizedScore}</strong>/j · {m.reactions} réac.</span>
                   </div>
                   <div className={styles.rankCount}>
                     <span className={styles.rankCountValue}>{m.moments}</span>
@@ -499,8 +499,9 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                     <th>Pseudo</th>
                     <th>Groupes</th>
                     <th>Moments</th>
-                    <th>Réactions</th>
-                    <th>Score</th>
+                    <th>Score Actif</th>
+                    <th>Score Total</th>
+                    <th>Arrivée</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -510,8 +511,9 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                       <td><strong>{m.username}</strong></td>
                       <td style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{m.groupNames}</td>
                       <td>{m.moments}</td>
-                      <td>{m.reactions}</td>
+                      <td><strong>{m.normalizedScore}</strong>/j</td>
                       <td>{m.score}</td>
+                      <td style={{ fontSize: '0.75rem' }}>{new Date(m.joinedAt).toLocaleDateString('fr-FR')}</td>
                     </tr>
                   ))}
                 </tbody>
