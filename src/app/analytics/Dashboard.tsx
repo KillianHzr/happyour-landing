@@ -88,12 +88,22 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
   const [visibleMembers, setVisibleMembers] = useState(10);
   const [showTable, setShowTable] = useState(false);
   const [selectedGroupForTimeline, setSelectedGroupForTimeline] = useState<string>("all");
+  const [rankingMode, setRankingMode] = useState<"active" | "total">("active");
 
   const {
     stats, typeDistribution,
     dailyDistribution, hourlyDistribution, activeMembers,
     groupParticipation, groupSizeDistribution, momentTimeline, photos, groups
   } = data;
+
+  const sortedMembers = useMemo(() => {
+    return [...activeMembers].sort((a, b) => {
+      if (rankingMode === "active") {
+        return b.normalizedScore - a.normalizedScore;
+      }
+      return b.score - a.score;
+    });
+  }, [activeMembers, rankingMode]);
 
   const filteredTimeline = useMemo(() => {
     if (selectedGroupForTimeline === "all") return momentTimeline;
@@ -423,20 +433,37 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
           </div>
 
           <div className={`${styles.card} glass-effect`}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <p className={styles.cardLabel} style={{ marginBottom: 0 }}>Activité des membres</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <p className={styles.cardLabel} style={{ marginBottom: 0 }}>Activité des membres</p>
+                <select 
+                  className={styles.groupSelect} 
+                  style={{ width: 'auto', fontSize: '10px', height: '24px' }}
+                  value={rankingMode}
+                  onChange={(e) => setRankingMode(e.target.value as "active" | "total")}
+                >
+                  <option value="active">Vue par activité (pro-rata)</option>
+                  <option value="total">Vue par volume (total)</option>
+                </select>
+              </div>
               <button className={styles.exportBtn} onClick={() => setShowTable(true)}>
                 <span>📊</span> Voir Tout
               </button>
             </div>
             <div className={styles.rankList}>
-              {activeMembers.length === 0 && <Empty />}
-              {activeMembers.slice(0, visibleMembers).map((m, i) => (
+              {sortedMembers.length === 0 && <Empty />}
+              {sortedMembers.slice(0, visibleMembers).map((m, i) => (
                 <div key={m.username} className={styles.rankRow}>
                   <span className={styles.rankPos}>{i < 3 ? MEDALS[i] : `#${i + 1}`}</span>
                   <div className={styles.rankMemberInfo}>
                     <span className={styles.rankName}>{m.username} <span className={styles.rankGroupName}>({m.groupNames})</span></span>
-                    <span className={styles.rankMetaSub}>Score activité : <strong>{m.normalizedScore}</strong>/j · {m.reactions} réac.</span>
+                    <span className={styles.rankMetaSub}>
+                      {rankingMode === "active" ? (
+                        <>Score activité : <strong>{m.normalizedScore}</strong>/j</>
+                      ) : (
+                        <>Score total : <strong>{m.score}</strong> pts</>
+                      )} · {m.reactions} réac.
+                    </span>
                   </div>
                   <div className={styles.rankCount}>
                     <span className={styles.rankCountValue}>{m.moments}</span>
@@ -444,7 +471,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                   </div>
                 </div>
               ))}
-              {visibleMembers < activeMembers.length && (
+              {visibleMembers < sortedMembers.length && (
                 <button className={styles.loadMoreBtn} onClick={() => setVisibleMembers(prev => prev + 10)}>
                   Charger plus (+10)
                 </button>
@@ -505,7 +532,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {activeMembers.map((m, i) => (
+                  {sortedMembers.map((m, i) => (
                     <tr key={m.username}>
                       <td>{i + 1}</td>
                       <td><strong>{m.username}</strong></td>
