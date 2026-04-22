@@ -150,6 +150,8 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
     csvContent += `Total Groupes,${stats.totalGroups}\n`;
     csvContent += `Groupes Actifs,${stats.activeGroups}\n`;
     csvContent += `Total Reactions,${stats.totalReactions}\n`;
+    csvContent += `Moyenne moments/user/semaine,${stats.avgMomentsPerUserWeekly}\n`;
+    csvContent += `Moyenne moments/user/jour,${stats.avgMomentsPerUserDaily}\n`;
     csvContent += `Moyenne posts/groupe/semaine,${stats.avgPostsPerGroupWeekly}\n`;
     csvContent += `Moyenne membres/groupe actif,${stats.avgMembersPerGroupActive}\n`;
     csvContent += `Moyenne membres/groupe (>1 membre),${stats.avgMembersPerGroup}\n\n`;
@@ -248,6 +250,8 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
 
       {/* KPIs */}
       <section className={styles.kpiRow}>
+        <KpiCard value={stats.avgMomentsPerUserWeekly} label="Moments / user / sem." isFloat />
+        <KpiCard value={stats.avgMomentsPerUserDaily} label="Moments / user / jour" isFloat />
         <KpiCard value={stats.totalMoments} label="Moments" />
         <KpiCard value={stats.totalUsers} label="Vrais utilisateurs" />
         <KpiCard 

@@ -105,6 +105,8 @@ export interface AnalyticsData {
     avgPostsPerGroupWeekly: number;
     avgMembersPerGroupActive: number;
     avgMembersPerGroup: number;
+    avgMomentsPerUserDaily: number;
+    avgMomentsPerUserWeekly: number;
     maxGroupMembers: number;
     maxGroupName: string;
   };
@@ -393,6 +395,12 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
 
   const activeGroupsCount = groupParticipation.filter(g => g.totalPosts > 0).length;
 
+  const totalDays = Math.max(1, (NOW_TS - START_TS_VAL) / (1000 * 60 * 60 * 24));
+  const avgMomentsPerUserDaily = filteredProfiles.length > 0 
+    ? (photosForStats.length / filteredProfiles.length) / totalDays 
+    : 0;
+  const avgMomentsPerUserWeekly = avgMomentsPerUserDaily * 7;
+
   // 10. Répartition de la taille des groupes
   const sizeMap = new Map<number, number>();
   for (const g of groupParticipation) {
@@ -466,6 +474,8 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       avgPostsPerGroupWeekly,
       avgMembersPerGroupActive,
       avgMembersPerGroup,
+      avgMomentsPerUserDaily,
+      avgMomentsPerUserWeekly,
       maxGroupMembers: maxGroup.total,
       maxGroupName: maxGroup.name,
     },
