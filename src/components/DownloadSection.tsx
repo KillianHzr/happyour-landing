@@ -21,7 +21,7 @@ export default function DownloadSection() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [error, setError] = useState(false);
 
-  const APK_URL = "https://expo.dev/artifacts/eas/aBaphBpJiQSCSHMSjjZTTw.apk";
+  const APK_URL = "https://expo.dev/artifacts/eas/kepwZZjidduVsTAiN8gLGB.apk";
 
   const downloadAPK = () => {
     const link = document.createElement("a");
