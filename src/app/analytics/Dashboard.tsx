@@ -59,9 +59,16 @@ function ChartTooltip({ active, payload, label }: TooltipProps) {
   const data = payload[0].payload;
   const topUsers = data.topUsers as { username: string; count: number }[] | undefined;
 
+  // Formater la date pour inclure le jour de la semaine
+  const formattedDate = label ? new Date(label).toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }) : label;
+
   return (
     <div className={styles.tooltip}>
-      {label && <p className={styles.tooltipLabel}>{label}</p>}
+      {formattedDate && <p className={styles.tooltipLabel}>{formattedDate}</p>}
       {payload.map((entry, i) => (
         <p key={i} className={styles.tooltipValue}>
           {entry.name}: <strong>{entry.value}</strong>
