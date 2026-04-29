@@ -148,17 +148,20 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       supabase
         .from("photos")
         .select("id, user_id, group_id, image_path, note, created_at")
-        .gte("created_at", START_DATE),
+        .gte("created_at", START_DATE)
+        .limit(10000),
       supabase
         .from("profiles")
         .select("id, username, created_at")
-        .not("username", "ilike", "%test%"),
-      supabase.from("group_members").select("group_id, user_id, joined_at, role"),
-      supabase.from("groups").select("id, name, created_at, created_by, invite_code"),
+        .not("username", "ilike", "%test%")
+        .limit(10000),
+      supabase.from("group_members").select("group_id, user_id, joined_at, role").limit(10000),
+      supabase.from("groups").select("id, name, created_at, created_by, invite_code").limit(10000),
       supabase
         .from("reactions")
         .select("photo_id, user_id, type, created_at")
-        .gte("created_at", START_DATE),
+        .gte("created_at", START_DATE)
+        .limit(10000),
     ]);
 
   const rawPhotos = photosRes.data ?? [];
