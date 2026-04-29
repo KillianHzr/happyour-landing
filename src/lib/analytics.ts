@@ -140,35 +140,61 @@ const START_DATE = "2026-03-30T00:00:00Z";
 const EXCLUDED_GROUP_ID = "7e15ead8-7e24-4d22-b587-7cb834fd38e5"; // HappyOur
 const EXCLUDED_USER_ID = "6feff666-5bcb-4b23-a9d8-22e38ceff5ca"; // theolanglade21@gmail.com
 
+/**
+ * Helper générique pour récupérer TOUTES les lignes d'une table Supabase,
+ * en contournant la limite par défaut (max_rows) de l'API via la pagination.
+ */
+async function fetchAllRows<T>(queryBuilder: any): Promise<T[]> {
+  const CHUNK_SIZE = 1000;
+  let allData: T[] = [];
+  let from = 0;
+  let to = CHUNK_SIZE - 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await queryBuilder.range(from, to);
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      hasMore = false;
+    } else {
+      allData = [...allData, ...data];
+      if (data.length < CHUNK_SIZE) {
+        hasMore = false;
+      } else {
+        from += CHUNK_SIZE;
+        to += CHUNK_SIZE;
+      }
+    }
+  }
+  return allData;
+}
+
 export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   // La table s'appelle "photos" (pas "moments").
   // Les réactions référencent "photo_id" (pas "moment_id").
-  const [photosRes, profilesRes, groupMembersRes, groupsRes, reactionsRes] =
+  const [rawPhotos, rawProfiles, rawGroupMembers, rawGroups, rawReactions] =
     await Promise.all([
-      supabase
-        .from("photos")
-        .select("id, user_id, group_id, image_path, note, created_at")
-        .gte("created_at", START_DATE)
-        .limit(10000),
-      supabase
-        .from("profiles")
-        .select("id, username, created_at")
-        .not("username", "ilike", "%test%")
-        .limit(10000),
-      supabase.from("group_members").select("group_id, user_id, joined_at, role").limit(10000),
-      supabase.from("groups").select("id, name, created_at, created_by, invite_code").limit(10000),
-      supabase
-        .from("reactions")
-        .select("photo_id, user_id, type, created_at")
-        .gte("created_at", START_DATE)
-        .limit(10000),
+      fetchAllRows<any>(
+        supabase
+          .from("photos")
+          .select("id, user_id, group_id, image_path, note, created_at")
+          .gte("created_at", START_DATE)
+      ),
+      fetchAllRows<any>(
+        supabase
+          .from("profiles")
+          .select("id, username, created_at")
+          .not("username", "ilike", "%test%")
+      ),
+      fetchAllRows<any>(supabase.from("group_members").select("group_id, user_id, joined_at, role")),
+      fetchAllRows<any>(supabase.from("groups").select("id, name, created_at, created_by, invite_code")),
+      fetchAllRows<any>(
+        supabase
+          .from("reactions")
+          .select("photo_id, user_id, type, created_at")
+          .gte("created_at", START_DATE)
+      ),
     ]);
-
-  const rawPhotos = photosRes.data ?? [];
-  const rawProfiles = profilesRes.data ?? [];
-  const rawGroupMembers = groupMembersRes.data ?? [];
-  const rawGroups = groupsRes.data ?? [];
-  const rawReactions = reactionsRes.data ?? [];
 
   // 0. Define the team to exclude from STATS
   const membersOfExcludedGroup = new Set(
