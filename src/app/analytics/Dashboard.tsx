@@ -495,7 +495,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
       </div>
 
       {/* Challenge Management & Stats */}
-      <section className={styles.managerSection}>
+      <section className={styles.managerSection} style={{ marginTop: '5rem' }}>
         <ChallengeManager data={data} />
       </section>
 
