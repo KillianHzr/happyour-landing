@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { supabase } from "@/lib/supabase-server";
 
 export async function authenticateAnalytics(
   prevState: { error: boolean },
@@ -24,4 +25,25 @@ export async function authenticateAnalytics(
   });
 
   redirect("/analytics");
+}
+
+export async function createChallengeTheme(label: string, capture_type: string) {
+  const cookieStore = await cookies();
+  const auth = cookieStore.get("analytics_auth");
+  if (auth?.value !== "authorized") {
+    throw new Error("Unauthorized");
+  }
+
+  const { data, error } = await supabase
+    .from("challenge_themes")
+    .insert([{ label, capture_type }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating theme:", error);
+    throw new Error(error.message);
+  }
+
+  return data;
 }

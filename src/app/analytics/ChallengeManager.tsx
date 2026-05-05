@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { AnalyticsData, ChallengeThemeItem } from "@/lib/analytics";
 import styles from "./analytics.module.css";
-import { supabase } from "@/lib/supabase-client";
+import { createChallengeTheme } from "./actions";
 
 export default function ChallengeManager({ data }: { data: AnalyticsData }) {
   const { stats, challengeThemes, challengeProposers } = data;
@@ -12,26 +12,25 @@ export default function ChallengeManager({ data }: { data: AnalyticsData }) {
   const [loading, setLoading] = useState(false);
   const [localThemes, setLocalThemes] = useState<ChallengeThemeItem[]>(challengeThemes);
 
+  // Sync with prop if it changes
+  useEffect(() => {
+    setLocalThemes(challengeThemes);
+  }, [challengeThemes]);
+
   const handleAddTheme = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTheme.label.trim()) return;
 
     setLoading(true);
     try {
-      const { data: inserted, error } = await supabase
-        .from("challenge_themes")
-        .insert([newTheme])
-        .select()
-        .single();
-
-      if (error) throw error;
+      const inserted = await createChallengeTheme(newTheme.label, newTheme.capture_type);
 
       setLocalThemes([{ ...inserted, count: 0 }, ...localThemes]);
       setNewTheme({ label: "", capture_type: "PHOTO" });
       setShowAddTheme(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to add theme", err);
-      alert("Erreur lors de l'ajout du thème");
+      alert(`Erreur lors de l'ajout du thème : ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -153,6 +152,7 @@ export default function ChallengeManager({ data }: { data: AnalyticsData }) {
                   onChange={e => setNewTheme({ ...newTheme, capture_type: e.target.value })}
                 >
                   <option value="PHOTO">📷 Photo</option>
+                  <option value="VIDEO">📹 Vidéo</option>
                   <option value="TEXTE">📝 Texte</option>
                   <option value="AUDIO">🎙 Audio</option>
                   <option value="DESSIN">✏️ Dessin</option>
