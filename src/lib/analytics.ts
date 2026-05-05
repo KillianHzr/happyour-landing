@@ -83,6 +83,26 @@ export interface SimplifiedPhoto {
   username: string;
 }
 
+export interface ChallengeStats {
+  totalChallenges: number;
+  customChallenges: number;
+  standardChallenges: number;
+  participationRate: number;
+  totalPendingCustom: number;
+}
+
+export interface ChallengeThemeItem {
+  id: string;
+  label: string;
+  capture_type: string;
+  count: number;
+}
+
+export interface ChallengeProposer {
+  username: string;
+  count: number;
+}
+
 export interface AnalyticsData {
   momentsByUser: MomentsByUser[];
   typeDistribution: TypeDistribution[];
@@ -96,6 +116,8 @@ export interface AnalyticsData {
   users: UserItem[];
   groupDetails: GroupDetail[];
   photos: SimplifiedPhoto[];
+  challengeThemes: ChallengeThemeItem[];
+  challengeProposers: ChallengeProposer[];
   stats: {
     totalMoments: number;
     totalUsers: number;
@@ -109,6 +131,7 @@ export interface AnalyticsData {
     avgMomentsPerUserWeekly: number;
     maxGroupMembers: number;
     maxGroupName: string;
+    challengeStats: ChallengeStats;
   };
 }
 
@@ -172,8 +195,17 @@ async function fetchAllRows<T>(queryBuilder: any): Promise<T[]> {
 export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   // La table s'appelle "photos" (pas "moments").
   // Les réactions référencent "photo_id" (pas "moment_id").
-  const [rawPhotos, rawProfiles, rawGroupMembers, rawGroups, rawReactions] =
-    await Promise.all([
+  const [
+    rawPhotos, 
+    rawProfiles, 
+    rawGroupMembers, 
+    rawGroups, 
+    rawReactions,
+    rawWeeklyChallenges,
+    rawQueueCustom,
+    rawChallengeThemes,
+    rawChallengeResponses
+  ] = await Promise.all([
       fetchAllRows<any>(
         supabase
           .from("photos")
@@ -192,6 +224,28 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
         supabase
           .from("reactions")
           .select("photo_id, user_id, type, created_at")
+          .gte("created_at", START_DATE)
+      ),
+      fetchAllRows<any>(
+        supabase
+          .from("weekly_challenges")
+          .select("id, group_id, custom_theme_label, created_at, theme_id")
+          .gte("created_at", START_DATE)
+      ),
+      fetchAllRows<any>(
+        supabase
+          .from("challenge_queue_custom")
+          .select("id, created_by, status")
+      ),
+      fetchAllRows<any>(
+        supabase
+          .from("challenge_themes")
+          .select("id, label, capture_type")
+      ),
+      fetchAllRows<any>(
+        supabase
+          .from("challenge_responses")
+          .select("challenge_id, user_id, created_at")
           .gte("created_at", START_DATE)
       ),
     ]);
@@ -240,6 +294,46 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
     (p) => filteredUserIds.has(p.user_id) && filteredGroupIds.has(p.group_id)
   );
   const reactions = rawReactions.filter((r) => filteredUserIds.has(r.user_id));
+
+  // --- CHALLENGE STATS ---
+  const challenges = rawWeeklyChallenges.filter(c => filteredGroupIds.has(c.group_id));
+  const customChallengesCount = challenges.filter(c => c.custom_theme_label !== null).length;
+  const standardChallengesCount = challenges.length - customChallengesCount;
+  const totalPendingCustom = rawQueueCustom.filter(q => q.status === "pending").length;
+
+  const filteredResponses = (rawChallengeResponses ?? []).filter(r => filteredUserIds.has(r.user_id));
+  const avgParticipation = challenges.length > 0
+    ? filteredResponses.length / challenges.length
+    : 0;
+
+  // Top proposants (ceux qui ajoutent à la file d'attente)
+  const proposerMap = new Map<string, number>();
+  for (const q of rawQueueCustom) {
+    if (filteredUserIds.has(q.created_by)) {
+      proposerMap.set(q.created_by, (proposerMap.get(q.created_by) ?? 0) + 1);
+    }
+  }
+  const challengeProposers: ChallengeProposer[] = [...proposerMap.entries()]
+    .map(([uid, count]) => ({
+      username: userMap.get(uid) ?? uid.slice(0, 8),
+      count,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // Distribution des thèmes par défaut
+  const themeUsageMap = new Map<string, number>();
+  for (const c of challenges) {
+    if (c.theme_id) {
+      themeUsageMap.set(c.theme_id, (themeUsageMap.get(c.theme_id) ?? 0) + 1);
+    }
+  }
+  const challengeThemes: ChallengeThemeItem[] = rawChallengeThemes.map(t => ({
+    id: t.id,
+    label: t.label,
+    capture_type: t.capture_type,
+    count: themeUsageMap.get(t.id) ?? 0,
+  })).sort((a, b) => b.count - a.count);
 
   // 1. Posts par utilisateur
   const momentsByUserMap = new Map<string, number>();
@@ -494,6 +588,8 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       user_id: p.user_id,
       username: userMap.get(p.user_id) ?? "Inconnu",
     })),
+    challengeThemes,
+    challengeProposers,
     stats: {
       totalMoments: photosForStats.length,
       totalUsers: filteredProfiles.length,
@@ -507,6 +603,13 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
       avgMomentsPerUserWeekly,
       maxGroupMembers: maxGroup.total,
       maxGroupName: maxGroup.name,
+      challengeStats: {
+        totalChallenges: challenges.length,
+        customChallenges: customChallengesCount,
+        standardChallenges: standardChallengesCount,
+        participationRate: Math.round(avgParticipation * 10) / 10,
+        totalPendingCustom,
+      }
     },
   };
 }

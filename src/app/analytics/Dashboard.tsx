@@ -22,6 +22,7 @@ import styles from "./analytics.module.css";
 import GroupExplorer from "./GroupExplorer";
 import UserExplorer from "./UserExplorer";
 import GlobalGroupManager from "./GlobalGroupManager";
+import ChallengeManager from "./ChallengeManager";
 
 const GREY = {
   100: "rgba(255,255,255,0.90)",
@@ -492,6 +493,11 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
 
         </div>
       </div>
+
+      {/* Challenge Management & Stats */}
+      <section className={styles.managerSection}>
+        <ChallengeManager data={data} />
+      </section>
 
       {/* Global Group Manager - Always visible, now at the bottom */}
       <section className={styles.managerSection} style={{ marginTop: '5rem' }}>
