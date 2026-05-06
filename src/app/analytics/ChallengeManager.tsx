@@ -4,6 +4,19 @@ import { useState, useMemo, useEffect } from "react";
 import type { AnalyticsData, ChallengeThemeItem } from "@/lib/analytics";
 import styles from "./analytics.module.css";
 import { createChallengeTheme } from "./actions";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+const GREY_500 = "rgba(255,255,255,0.08)";
 
 export default function ChallengeManager({ data }: { data: AnalyticsData }) {
   const { stats, challengeThemes, challengeProposers } = data;
@@ -25,7 +38,7 @@ export default function ChallengeManager({ data }: { data: AnalyticsData }) {
     try {
       const inserted = await createChallengeTheme(newTheme.label, newTheme.capture_type);
 
-      setLocalThemes([{ ...inserted, count: 0 }, ...localThemes]);
+      setLocalThemes([{ ...inserted, count: 0, participationRate: 0 }, ...localThemes]);
       setNewTheme({ label: "", capture_type: "PHOTO" });
       setShowAddTheme(false);
     } catch (err: any) {
@@ -56,19 +69,80 @@ export default function ChallengeManager({ data }: { data: AnalyticsData }) {
         </div>
       </div>
 
-      <div className={styles.kpiRow} style={{ marginBottom: '3rem' }}>
+      <div className={styles.kpiRow} style={{ marginBottom: '2rem' }}>
         <div className={styles.kpiCard} style={{ background: 'rgba(255,255,255,0.02)' }}>
-          <p className={styles.kpiValue}>{stats.challengeStats.participationRate}</p>
-          <p className={styles.kpiLabel}>Partic. moyenne / défi</p>
+          <p className={styles.kpiValue}>{stats.challengeStats.avgParticipationP1}%</p>
+          <p className={styles.kpiLabel}>Partic. Moyenne Défi 1</p>
+          <p className={styles.kpiSubLabel}>moy. {stats.challengeStats.avgParticipantsP1} par. / sem.</p>
+        </div>
+        <div className={styles.kpiCard} style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <p className={styles.kpiValue}>{stats.challengeStats.avgParticipationP2}%</p>
+          <p className={styles.kpiLabel}>Partic. Moyenne Défi 2</p>
+          <p className={styles.kpiSubLabel}>moy. {stats.challengeStats.avgParticipantsP2} par. / sem.</p>
+        </div>
+        <div className={styles.kpiCard} style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <p className={styles.kpiValue}>{stats.challengeStats.targetParticipationRate}%</p>
+          <p className={styles.kpiLabel}>Participation des Cibles</p>
+          <p className={styles.kpiSubLabel}>sur leur propre photo cible</p>
         </div>
         <div className={styles.kpiCard} style={{ background: 'rgba(255,255,255,0.02)' }}>
           <p className={styles.kpiValue}>{customPercent}%</p>
-          <p className={styles.kpiLabel}>Défis d'origine Custom</p>
-          <p className={styles.kpiSubLabel}>{stats.challengeStats.customChallenges} sur {stats.challengeStats.totalChallenges}</p>
+          <p className={styles.kpiLabel}>Origine Custom</p>
+          <p className={styles.kpiSubLabel}>{stats.challengeStats.customChallenges} / {stats.challengeStats.totalChallenges}</p>
         </div>
-        <div className={styles.kpiCard} style={{ background: 'rgba(255,255,255,0.02)' }}>
-          <p className={styles.kpiValue}>{stats.challengeStats.totalPendingCustom}</p>
-          <p className={styles.kpiLabel}>Défis en file d'attente</p>
+      </div>
+
+      {/* Participation Trends and Daily Distribution */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', marginBottom: '3rem' }}>
+        <div>
+          <p className={styles.cardLabel} style={{ marginBottom: '1.5rem' }}>Évolution du taux de participation aux défis (%)</p>
+          <div style={{ height: '200px', width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={stats.challengeStats.weeklyParticipation}>
+                <CartesianGrid strokeDasharray="3 3" stroke={GREY_500} />
+                <XAxis dataKey="date" tick={{ fill: "#888", fontSize: 11 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fill: "#888", fontSize: 11 }} tickLine={false} axisLine={false} unit="%" />
+                <Tooltip 
+                  contentStyle={{ background: "rgba(10,10,10,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 }}
+                  itemStyle={{ color: "#fff" }}
+                />
+                <Line type="monotone" dataKey="rate" name="Participation" stroke="#fff" strokeWidth={2} dot={{ fill: "#fff", r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        <div>
+          <p className={styles.cardLabel} style={{ marginBottom: '1.5rem' }}>Jours de participation</p>
+          <div style={{ height: '200px', width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.challengeStats.dailyDistribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke={GREY_500} />
+                <XAxis dataKey="day" tick={{ fill: "#888", fontSize: 11 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fill: "#888", fontSize: 11 }} tickLine={false} axisLine={false} hide />
+                <Tooltip 
+                  contentStyle={{ background: "rgba(10,10,10,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 }}
+                  itemStyle={{ color: "#fff" }}
+                />
+                <Bar dataKey="count" fill="rgba(255,255,255,0.4)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Participation by Type */}
+      <div style={{ marginBottom: '3rem' }}>
+        <p className={styles.cardLabel} style={{ marginBottom: '1rem' }}>Taux de participation par type de média</p>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          {stats.challengeStats.typeParticipation.map(t => (
+            <div key={t.type} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '16px', flex: 1, minWidth: '140px' }}>
+              <p style={{ fontSize: '0.7rem', color: '#888', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>{t.type}</p>
+              <p style={{ fontSize: '1.5rem', fontWeight: 900 }}>{t.rate}%</p>
+              <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', marginTop: '8px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: '#fff', width: `${t.rate}%` }} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -103,6 +177,7 @@ export default function ChallengeManager({ data }: { data: AnalyticsData }) {
                   <th>Label</th>
                   <th>Capture</th>
                   <th>Utilisé</th>
+                  <th>Participation</th>
                 </tr>
               </thead>
               <tbody>
@@ -116,6 +191,11 @@ export default function ChallengeManager({ data }: { data: AnalyticsData }) {
                     </td>
                     <td style={{ color: t.count > 0 ? '#fff' : '#555' }}>
                       {t.count} fois
+                    </td>
+                    <td>
+                      <strong style={{ color: t.participationRate > 50 ? '#4cd137' : t.participationRate > 20 ? '#fbc531' : '#e84118' }}>
+                        {t.participationRate}%
+                      </strong>
                     </td>
                   </tr>
                 ))}

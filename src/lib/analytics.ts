@@ -89,6 +89,14 @@ export interface ChallengeStats {
   standardChallenges: number;
   participationRate: number;
   totalPendingCustom: number;
+  avgParticipationP1: number;
+  avgParticipationP2: number;
+  avgParticipantsP1: number;
+  avgParticipantsP2: number;
+  weeklyParticipation: { date: string; rate: number }[];
+  typeParticipation: { type: string; rate: number }[];
+  targetParticipationRate: number;
+  dailyDistribution: { day: string; count: number }[];
 }
 
 export interface ChallengeThemeItem {
@@ -96,6 +104,7 @@ export interface ChallengeThemeItem {
   label: string;
   capture_type: string;
   count: number;
+  participationRate: number;
 }
 
 export interface ChallengeProposer {
@@ -302,6 +311,82 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
   const totalPendingCustom = rawQueueCustom.filter(q => q.status === "pending").length;
 
   const filteredResponses = (rawChallengeResponses ?? []).filter(r => filteredUserIds.has(r.user_id));
+  
+  // Map responses to challenge_id
+  const responsesByChallenge = new Map<string, number>();
+  for (const r of filteredResponses) {
+    responsesByChallenge.set(r.challenge_id, (responsesByChallenge.get(r.challenge_id) ?? 0) + 1);
+  }
+
+  // Calculate participation per challenge
+  const challengeDetails = challenges.map(c => {
+    const responseCount = responsesByChallenge.get(c.id) ?? 0;
+    const membersCount = filteredGroupMembers.filter(gm => gm.group_id === c.group_id && filteredUserIds.has(gm.user_id)).length;
+    const rate = membersCount > 0 ? (responseCount / membersCount) * 100 : 0;
+    
+    // Determine type for participation by type
+    let type = "PHOTO";
+    if (c.custom_theme_label) {
+      type = c.custom_capture_type || "PHOTO";
+    } else {
+      const theme = rawChallengeThemes.find(t => t.id === c.theme_id);
+      type = theme?.capture_type || "PHOTO";
+    }
+
+    return { ...c, responseCount, membersCount, rate, type };
+  });
+
+  // 1. Participation by Type
+  const types_list = ["PHOTO", "VIDEO", "TEXTE", "AUDIO", "DESSIN"];
+  const typeParticipation = types_list.map(t => {
+    const typeChallenges = challengeDetails.filter(c => c.type === t);
+    const avgRate = typeChallenges.length > 0
+      ? Math.round(typeChallenges.reduce((acc, c) => acc + c.rate, 0) / typeChallenges.length)
+      : 0;
+    return { type: t, rate: avgRate };
+  }).sort((a, b) => b.rate - a.rate);
+
+  // 2. Participation of Targets (is_target_response = true)
+  const targetResponses = filteredResponses.filter(r => (r as any).is_target_response === true || (rawWeeklyChallenges.find(rc => rc.id === r.challenge_id) as any)?.target_user_id === r.user_id);
+  const targetParticipationRate = challenges.length > 0
+    ? Math.round((targetResponses.length / challenges.length) * 100)
+    : 0;
+
+  // 3. Participation by Theme
+  const themeParticipationMap = new Map<string, { totalRate: number, count: number }>();
+  for (const c of challengeDetails) {
+    if (c.theme_id) {
+      const current = themeParticipationMap.get(c.theme_id) || { totalRate: 0, count: 0 };
+      themeParticipationMap.set(c.theme_id, {
+        totalRate: current.totalRate + c.rate,
+        count: current.count + 1
+      });
+    }
+  }
+
+  const challengeThemes: ChallengeThemeItem[] = rawChallengeThemes.map(t => {
+    const stats = themeParticipationMap.get(t.id);
+    return {
+      id: t.id,
+      label: t.label,
+      capture_type: t.capture_type,
+      count: stats?.count ?? 0,
+      participationRate: stats && stats.count > 0 ? Math.round(stats.totalRate / stats.count) : 0
+    };
+  }).sort((a, b) => b.participationRate - a.participationRate);
+
+  // 4. Daily Distribution of Challenge Responses
+  const DAYS_FR_CHALLENGE = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  const challengeDayMap = new Map<number, number>();
+  for (const r of filteredResponses) {
+    const dow = (new Date(r.created_at).getDay() + 6) % 7;
+    challengeDayMap.set(dow, (challengeDayMap.get(dow) ?? 0) + 1);
+  }
+  const challengeDailyDistribution = DAYS_FR_CHALLENGE.map((day, i) => ({
+    day,
+    count: challengeDayMap.get(i) ?? 0,
+  }));
+
   const avgParticipation = challenges.length > 0
     ? filteredResponses.length / challenges.length
     : 0;
@@ -609,6 +694,14 @@ export async function fetchAnalyticsData(): Promise<AnalyticsData> {
         standardChallenges: standardChallengesCount,
         participationRate: Math.round(avgParticipation * 10) / 10,
         totalPendingCustom,
+        avgParticipationP1,
+        avgParticipationP2,
+        avgParticipantsP1,
+        avgParticipantsP2,
+        weeklyParticipation,
+        typeParticipation,
+        targetParticipationRate,
+        dailyDistribution: challengeDailyDistribution,
       }
     },
   };
