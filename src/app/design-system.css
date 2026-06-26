@@ -1,0 +1,138 @@
+/*
+ * Design-system classes — built entirely on the token CSS variables
+ * (--color-*, --space-*, --radius-*, --text-*, --font-*, --shadow-*, --stroke-*)
+ * that are injected at :root by the root layout.
+ *
+ * This is plain, editable CSS that you own: add, remove, or tweak any
+ * declaration here, and it applies everywhere the class is used. For one-off
+ * page tweaks, combine a ds-* class with a CSS Module class — the Module wins.
+ *
+ *   <p class="ds-subheading ds-text-inverse">…</p>
+ */
+
+/* ── Typography ──────────────────────────────────────────────────────────── */
+.ds-title {
+  font-family: var(--font-title-page); /* Parkinsans */
+  font-weight: var(--font-weight-bold);
+  font-size: var(--text-title);        /* 48px */
+  line-height: 1.3;
+}
+
+.ds-title-hero {
+  font-family: var(--font-title-hero); /* Parkinsans */
+  font-weight: var(--font-weight-bold);
+  font-size: clamp(var(--text-subtitle), 6vw, var(--text-hero)); /* 32 → 72px */
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+.ds-heading {
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--text-xxl);          /* 24px */
+  line-height: 1.3;
+}
+
+.ds-subheading {
+  font-family: var(--font-subheading); /* Inter */
+  font-weight: var(--font-weight-regular);
+  font-size: var(--text-subheading-md); /* 20px */
+  line-height: 1.2;
+  opacity: 0.7; /* subtexts are dimmed to 70% everywhere */
+}
+
+.ds-body {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-regular);
+  font-size: var(--text-md);           /* 16px */
+  line-height: 1.5;
+}
+
+.ds-body-strong {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.ds-caption {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-regular);
+  font-size: var(--text-sm);           /* 14px */
+  line-height: 1.4;
+}
+
+/* ── Text colour helpers ─────────────────────────────────────────────────── */
+.ds-text-default { color: var(--color-text); }
+.ds-text-inverse { color: var(--color-text-inverse); }
+.ds-text-muted   { color: var(--color-muted); }
+.ds-text-brand   { color: var(--color-brand); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.ds-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  padding: var(--space-lg) var(--space-xl); /* 16px / 24px */
+  border-radius: var(--radius-lg);          /* 16px */
+  background: var(--color-brand);           /* #FF561A */
+  color: var(--color-white);
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-md);
+  line-height: 1;
+  transition: background 0.15s ease;
+}
+.ds-button:hover { background: var(--color-brand-hover); }
+
+.ds-button-outline {
+  background: transparent;
+  color: var(--color-brand);
+  border: var(--stroke-sm) solid var(--color-brand);
+}
+.ds-button-outline:hover {
+  background: var(--color-brand);
+  color: var(--color-white);
+}
+
+/* ── Surfaces ────────────────────────────────────────────────────────────── */
+.ds-card {
+  background: var(--color-card);
+  border: var(--stroke-sm) solid var(--color-card-border);
+  border-radius: var(--radius-card);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.ds-section {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+}
+
+.ds-stack { display: flex; flex-direction: column; }
+.ds-center { align-items: center; text-align: center; }
+
+/* ── Gap utilities ───────────────────────────────────────────────────────── */
+.ds-gap-sm  { gap: var(--space-sm); }   /* 8px  */
+.ds-gap-md  { gap: var(--space-md); }   /* 12px */
+.ds-gap-lg  { gap: var(--space-lg); }   /* 16px */
+.ds-gap-xl  { gap: var(--space-xl); }   /* 24px */
+.ds-gap-xxl { gap: var(--space-xxl); }  /* 32px */
+.ds-gap-64  { gap: var(--space-xl4); }  /* 64px */
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .ds-section {
+    min-height: 100dvh;
+    padding: var(--space-xl4) var(--space-lg);
+  }
+  .ds-title { font-size: var(--text-subtitle); }      /* hero title — 32px on mobile */
+  .ds-title-hero { font-size: var(--text-title); }    /* section titles — 48px on mobile */
+}

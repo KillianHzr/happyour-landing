@@ -1,0 +1,121 @@
+/* Site footer.
+   Tokens map from the Figma SDS names referenced in the spec:
+     --sds-color-background-default-default → --color-bg
+     --sds-color-background-brand-default   → --color-brand
+     --sds-color-text-default-default       → --color-text
+     --sds-typography-body-size-medium      → --text-md
+     --sds-typography-body-font-weight-regular → --font-weight-regular */
+.footer {
+  display: flex;
+  align-items: flex-start;
+  gap: 19px;
+  padding: 80px 38px; /* y / x */
+  background: var(--color-bg);
+}
+
+/* First section: logo + social, stacked, left-aligned, 28px apart */
+.brandCol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 28px;
+  min-width: 288px;
+}
+
+/* Disclose logo rendered as a mask so its block fills with the brand colour;
+   the letter cut-outs show the footer background through. */
+.logo {
+  display: block;
+  width: 180px;
+  height: 39.6px; /* 180 × 48 / 218 keeps the SVG ratio */
+  background-color: var(--color-brand);
+  -webkit-mask: url("/icons/Disclose_logo.svg") left center / contain no-repeat;
+  mask: url("/icons/Disclose_logo.svg") left center / contain no-repeat;
+}
+
+.social {
+  display: inline-flex;
+}
+
+/* Clickable button that copies the contact email to the clipboard */
+.copyEmail {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-text) 18%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: 1.4;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.copyEmail:hover {
+  border-color: var(--color-brand);
+  background: color-mix(in srgb, var(--color-brand) 8%, transparent);
+}
+
+.copyEmailHint {
+  font-weight: var(--font-weight-semibold);
+  font-size: 0.8125em;
+  color: var(--color-brand);
+}
+
+.socialIcon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+/* Second section: "Legal" heading, then the link grid 14px below */
+.legalCol {
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* grow so the grid has a container width to fill evenly */
+}
+
+.legalTitle {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-md);
+  line-height: 1.4;
+  color: var(--color-text);
+}
+
+.linkGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 equal columns */
+  grid-template-rows: repeat(3, 1fr);    /* 3 equal rows */
+  align-items: center;
+  gap: 14.4px; /* row and column */
+  padding-top: 14px; /* 14px below the "Legal" heading */
+  width: 100%;
+  max-width: 800px;
+}
+
+/* body / medium / regular, 140% line height */
+.link {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-regular);
+  font-size: var(--text-md);
+  line-height: 1.4;
+  vertical-align: middle;
+  color: var(--color-text);
+}
+.link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .footer {
+    flex-direction: column;
+    gap: 40px;
+  }
+  .linkGrid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: none;
+  }
+}

@@ -1,0 +1,41 @@
+/* Cursor image-trail overlay for the hero section.
+   The hero <section> (.ds-section) is the positioned ancestor and carries
+   data-trail="wrapper"; this overlay fills it, sits behind the hero text
+   (.heroContent raises that above), and never intercepts pointer events so
+   the CTA button stays clickable. */
+
+.trail-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.trail-list {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* Square so the SVG shape isn't distorted. The mask-image (one of the hero
+   shapes) is set per-item inline; it clips the photo inside to that shape. */
+.trail-item {
+  opacity: 0;
+  width: 16em;
+  height: 16em;
+  position: absolute;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  will-change: transform, opacity;
+}
+
+.trail-item__img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}

@@ -1,3 +1,11 @@
+/*
+ * Design-token CSS variables (--color-*, --space-*, --radius-*, --shadow-*,
+ * --text-*, --font-weight-*, --palette-*) are injected at :root by the root
+ * layout (see src/theme/cssVariables.ts) and re-theme via <html data-theme>.
+ *
+ * The legacy aliases below are kept as-is so the current look is unchanged.
+ * Migrate them to tokens incrementally, e.g. --background: var(--color-bg).
+ */
 :root {
   --background: #000000;
   --foreground: #ffffff;
@@ -21,7 +29,7 @@ body {
   overflow-x: hidden;
   background-color: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

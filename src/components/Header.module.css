@@ -1,0 +1,66 @@
+/* Sticky header that hides on scroll-down and reveals on scroll-up.
+   Its colour (and the logo's, via currentColor) is driven by data-mode, which
+   the component sets from the section currently sitting under the header. */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg) 32px;
+  color: #ffffff;
+  /* Transparent by default (no shift); coloured on the white/black modes below.
+     --sds-color-border-default-default → --color-card-border */
+  border-bottom: 1px solid transparent;
+  transition:
+    transform 0.35s ease,
+    background-color 0.35s ease,
+    color 0.35s ease,
+    border-color 0.35s ease;
+}
+
+/* Hidden = slid up out of view (scrolling down). */
+.hidden {
+  transform: translateY(-100%);
+}
+
+.header[data-mode="transparent"] {
+  background-color: transparent;
+  color: #ffffff;
+}
+.header[data-mode="white"] {
+  background-color: #ffffff;
+  color: #000000;
+  border-bottom-color: #d9d9d9;
+}
+.header[data-mode="black"] {
+  background-color: #000000;
+  color: #ffffff;
+  border-bottom-color: #383838;
+}
+
+/* Logo rendered as a mask so its block recolours to currentColor (i.e. always
+   the header's contrast colour); the letter cut-outs show the header through. */
+.logo {
+  display: block;
+  flex-shrink: 0;
+  width: 220px;
+  height: 48.4px; /* 220 × 48 / 218, keeps the SVG ratio */
+  background-color: currentColor;
+  -webkit-mask: url("/icons/Disclose_logo.svg") left center / contain no-repeat;
+  mask: url("/icons/Disclose_logo.svg") left center / contain no-repeat;
+  transition: background-color 0.35s ease;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: var(--space-md) var(--space-lg);
+  }
+  .logo {
+    width: 150px;
+    height: 33px; /* 150 × 48 / 218 */
+  }
+}

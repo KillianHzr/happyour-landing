@@ -3,14 +3,27 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
-import DownloadSection from "@/components/DownloadSection";
 import EmailVerified from "@/components/EmailVerified";
 import Toast from "@/components/Toast";
+import HeroCursorTrail from "@/components/HeroCursorTrail";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import ShutterTransition from "@/components/ShutterTransition";
+import AnimatedButton from "@/components/AnimatedButton";
+import { FlowerShape, SmileShape, PillowShape, DotShape, StackShape, HornShape, RingShape } from "@/components/shapes";
+import { initShutterScrollTransition } from "@/app/javascript/shutter-transition";
+import { openStore } from "@/lib/store";
 
 export default function Home() {
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Build every shutter transition once, after all wrappers are in the DOM.
+  useEffect(() => {
+    const cleanup = initShutterScrollTransition();
+    return () => cleanup?.();
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -45,34 +58,146 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
+      <Header />
       <EmailVerified />
-      
+
       {error && (
-        <Toast 
-          message={error} 
-          type="error" 
-          onClose={() => setError(null)} 
+        <Toast
+          message={error}
+          type="error"
+          onClose={() => setError(null)}
         />
       )}
 
-      <header className={styles.header}>
-        <div className={styles.logo}>HappyOur</div>
-        <div className={styles.studio}>Source Studio</div>
-      </header>
+      {/* Section 1 — Hero */}
+      <section className={`ds-section ${styles.hero}`} data-trail="wrapper" data-header="transparent">
+        <HeroCursorTrail />
 
-      <section className={styles.hero}>
-        <div className={styles.badge}>Beta Test Privée</div>
-        <h1 className={styles.title}>Bienvenue dans la beta.</h1>
-        <p className={styles.subtitle}>
-          Capturez vos moments. Partagez l'intime. Revivez votre semaine.
-        </p>
+        <div className={`ds-stack ds-center ds-gap-64 ${styles.heroContent}`}>
+          <div className={`ds-stack ds-center ds-gap-xl ${styles.heroText}`}>
+            <h1 className="ds-title ds-text-inverse">Aucun algorithmes. Juste tes potes</h1>
+            <p className="ds-subheading ds-text-inverse">
+              La seule application sociale qui instaure un moment commun pour la (re)découverte du quotidien de tes proches !
+            </p>
+          </div>
+          <AnimatedButton
+            onClick={openStore}
+            shortLabel="Télécharger l’application"
+            className={styles.heroButton}
+          >
+            Télécharger l’application
+          </AnimatedButton>
+        </div>
+
+        {/* Wipe into the white Capture section */}
+        <ShutterTransition color="#ffffff" />
       </section>
 
-      <DownloadSection />
+      {/* Section 2 — Capture (grey) */}
+      <section className={`${styles.feature} ${styles.featureGrey}`} data-header="white">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={styles.featurePhone} src="/img/phone.png" alt="" />
 
-      <footer className={styles.footer}>
-        <p>&copy; {new Date().getFullYear()} Source Studio. Tous droits réservés.</p>
-      </footer>
+        <div className={styles.featureMiddle}>
+          <div className={styles.featureText}>
+            <h2 className="ds-title-hero ds-text-default">Capture</h2>
+            <p className="ds-subheading ds-text-default">
+              Capture des moments tout au long de la semaine que ça soit de la vidéo, des photos ou du dessin !
+            </p>
+          </div>
+          <div className={styles.featureIcons}>
+            <FlowerShape className={styles.featureIcon} />
+
+            <PillowShape className={styles.featureIcon} />
+            <SmileShape className={styles.featureIcon} />
+          </div>
+        </div>
+
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={styles.featureSideImage} src="/img/section_image_1.jpg" alt="" />
+
+        {/* Wipe into the dark Enrichit section */}
+        <ShutterTransition color="#0c0c0d" />
+      </section>
+
+      {/* Section 4 — Enrichit (dark, reversed) */}
+      <section className={`${styles.feature} ${styles.featureReverse}`} data-theme="dark" data-header="black">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={styles.featurePhone} src="/img/phone_2.png" alt="" />
+
+        <div className={styles.featureMiddle}>
+          <div className={styles.featureText}>
+            <h2 className="ds-title-hero ds-text-default">Enrichit</h2>
+            <p className={`ds-subheading ${styles.subOnDark}`}>
+              Rajoute du contexte à tout ces moments grâce à l’ajout de description vocal ou textuelle !
+            </p>
+          </div>
+          <div className={styles.featureIcons}>
+            <StackShape className={styles.featureIcon} />
+            <HornShape className={styles.featureIcon} />
+          </div>
+        </div>
+
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={styles.featureSideImage} src="/img/section_image_2.png" alt="" />
+
+        {/* Wipe into the white Attends section */}
+        <ShutterTransition color="#ffffff" />
+      </section>
+
+      {/* Section 5 — Attends (grey) */}
+      <section className={`${styles.feature} ${styles.featureGrey}`} data-header="white">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={styles.featurePhone} src="/img/phone_3.png" alt="" />
+
+        <div className={styles.featureMiddle}>
+          <div className={styles.featureText}>
+            <h2 className="ds-title-hero ds-text-default">Attends</h2>
+            <p className="ds-subheading ds-text-default">
+              Tout au long de la semaine les moments sont cachés et s’accumule, apprends à prendre le temps d’attendre.
+            </p>
+          </div>
+          <div className={styles.featureIcons}>
+            <DotShape className={styles.featureIcon} />
+            <DotShape className={styles.featureIcon} />
+
+
+            <DotShape className={styles.featureIcon} />
+
+          </div>
+        </div>
+
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={styles.featureSideImage} src="/img/section_image_3.jpg" alt="" />
+
+        {/* Wipe into the dark Revis section */}
+        <ShutterTransition color="#0c0c0d" />
+      </section>
+
+      {/* Section 6 — Revis (black, text block + 3 phones) */}
+      <section className={styles.showcase} data-theme="dark" data-header="black">
+        <div className={styles.showcaseText}>
+          <div className={styles.showcaseCopy}>
+            <h2 className="ds-title-hero ds-text-default">Reveal</h2>
+            <p className={`ds-subheading ${styles.subOnDark}`}>
+              En fin de semaine, le dimanche à 20h, fin du suspens. Tout les moments sont dévoilés ! Profite de cet instant pour rédécouvrir le quotidien de tes proches et le tiens en meme temps qu’eux !
+            </p>
+          </div>
+                      <RingShape className={styles.featureIcon} />
+
+        </div>
+
+        <div className={styles.showcasePhones}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.showcasePhone} src="/img/phone.png" alt="" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.showcasePhone} src="/img/phone_2.png" alt="" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.showcasePhone} src="/img/phone_3.png" alt="" />
+        </div>
+      </section>
+
+      <Footer />
 
       {/* Background decoration (black/grey only) */}
       <div className={styles.bgGlow1} />

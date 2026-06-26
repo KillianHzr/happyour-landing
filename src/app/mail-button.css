@@ -1,0 +1,104 @@
+.copy-email-wrapper {
+  grid-column-gap: 2em;
+  grid-row-gap: 2em;
+  flex-flow: column;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+}
+
+.copy-email-eyebrow {
+  opacity: .5;
+  text-align: center;
+  margin-bottom: 0;
+  font-size: 1em;
+  line-height: 1;
+}
+
+.copy-email-button {
+  grid-column-gap: .75em;
+  grid-row-gap: .75em;
+  background-color: #fff;
+  border-radius: .5em;
+  justify-content: flex-start;
+  align-items: center;
+  padding: .75em 1em .75em .75em;
+  display: flex;
+}
+
+.copy-email-button:focus {
+  outline-offset: 0px;
+  border: 1px #000;
+  outline: 3px #131313;
+}
+
+.copy-email-button:focus-visible, .copy-email-button[data-wf-focus-visible] {
+  outline-offset: 4px;
+  border-style: none;
+  outline: 2px solid #fff;
+}
+
+.copy-email-text__wrap {
+  flex-flow: column;
+  justify-content: flex-start;
+  align-items: center;
+  height: 1.2em;
+  font-size: 2em;
+  line-height: 1.2;
+  display: flex;
+  overflow: hidden;
+}
+
+.copy-email-text__el {
+  white-space: nowrap;
+  font-size: 1em;
+  transition: transform .45s cubic-bezier(.65, 0, 0, 1);
+}
+
+.copy-email-icon__wrap {
+  color: #fff;
+  background-color: #22502e;
+  border-radius: .375em;
+  justify-content: center;
+  align-items: center;
+  width: 2.5em;
+  height: 2.5em;
+  padding: .5em;
+  transition: background-color .2s;
+  display: flex;
+}
+
+/* Hover styling */
+@media (hover: hover) {
+  .copy-email-button:hover .copy-email-icon__wrap{
+    background: rgba(34, 80, 46, 0.9);
+  }
+  .copy-email-button:hover .copy-email-text__el{
+    transform: translate(0px, -100%);
+  }
+}
+
+/* Keyboard focus styling */
+.copy-email-button:focus .copy-email-icon__wrap{
+  background: rgba(34, 80, 46, 0.9);
+}
+.copy-email-button:focus .copy-email-text__el {
+  transform: translate(0px, -100%);
+}
+
+/* 'Copied' state, when a user has clicked the button */
+[data-copy-button="copied"] .copy-email-icon__wrap{ background: #0F8E2E !important; }
+[data-copy-button="copied"] .copy-email-text__el{ transform: translate(0px, -200%) !important; }
+
+
+@media screen and (max-width: 991px) {
+  .section-resource {
+    font-size: 1em;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  .copy-email-text__wrap {
+    font-size: 1em;
+  }
+}
