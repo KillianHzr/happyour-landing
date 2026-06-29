@@ -24,7 +24,10 @@ export async function authenticateAnalytics(
     path: "/analytics",
   });
 
-  redirect("/analytics");
+  // Redirect back to the page the user came from (must stay under /analytics).
+  const requested = (formData.get("redirectTo") as string) || "/analytics";
+  const target = requested.startsWith("/analytics") ? requested : "/analytics";
+  redirect(target);
 }
 
 export async function createChallengeTheme(label: string, capture_type: string) {

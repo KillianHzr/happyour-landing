@@ -20,7 +20,7 @@ export default async function TriPage() {
   const isAuthenticated = cookieStore.get("analytics_auth")?.value === "authorized";
 
   if (!isAuthenticated) {
-    return <CodeGate />;
+    return <CodeGate redirectTo="/analytics/tri" />;
   }
 
   // Restrict the tri tool to groups whose name contains "Gobelin" (anywhere,

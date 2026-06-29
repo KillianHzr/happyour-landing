@@ -16,7 +16,7 @@ function SubmitButton() {
   );
 }
 
-export default function CodeGate() {
+export default function CodeGate({ redirectTo = "/analytics" }: { redirectTo?: string }) {
   const [state, formAction] = useActionState(authenticateAnalytics, initialState);
 
   return (
@@ -30,6 +30,7 @@ export default function CodeGate() {
         <form action={formAction} className={`${styles.gateForm} glass-effect`}>
           <h3>Accès Réservé</h3>
           <p>Entrez le code d'accès pour consulter les analytics.</p>
+          <input type="hidden" name="redirectTo" value={redirectTo} />
           <input
             type="password"
             name="code"
