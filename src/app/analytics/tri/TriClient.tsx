@@ -53,25 +53,23 @@ async function uploadFile(
 
 /* ------------------------------- Media thumb ------------------------------ */
 
+// Keyed by previewUrls[0] at call sites so it remounts when the media changes.
 function MediaThumb({ c }: { c: CaptureRow }) {
-  const [src, setSrc] = useState(c.url || c.thumb_url || "");
-  const [failed, setFailed] = useState(false);
+  const urls = c.previewUrls;
+  const [idx, setIdx] = useState(0);
 
   if (c.type === "text") return <div className={styles.thumbText}>📝</div>;
   if (c.type === "audio") return <div className={styles.thumbText}>🎵</div>;
-  if (!src || failed)
+  if (urls.length === 0 || idx >= urls.length)
     return <div className={styles.thumbText}>{c.type === "video" ? "🎬" : "🖼️"}</div>;
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       className={styles.thumbImg}
-      src={src}
+      src={urls[idx]}
       alt={c.type}
-      onError={() => {
-        if (c.fallback_url && src !== c.fallback_url) setSrc(c.fallback_url);
-        else setFailed(true);
-      }}
+      onError={() => setIdx((i) => i + 1)}
     />
   );
 }
@@ -367,7 +365,7 @@ function CaptureModal({
                     onClick={() => setReusePath(c.image_path)}
                     title={c.image_path ?? ""}
                   >
-                    <MediaThumb c={c} />
+                    <MediaThumb key={c.previewUrls[0] ?? c.id} c={c} />
                   </button>
                 ))}
               </div>
@@ -477,6 +475,60 @@ function ReactionBar({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------------------- Week duplicator ----------------------------- */
+
+function WeekDuplicator({
+  items,
+  groups,
+  currentGroupId,
+  onDone,
+}: {
+  items: CaptureRow[];
+  groups: GroupRow[];
+  currentGroupId: string;
+  onDone: () => void;
+}) {
+  const [target, setTarget] = useState("");
+  const [busy, setBusy] = useState(false);
+  const others = groups.filter((g) => g.id !== currentGroupId);
+
+  if (others.length === 0) return null;
+
+  return (
+    <div className={styles.weekDup}>
+      <select className={styles.select} value={target} onChange={(e) => setTarget(e.target.value)}>
+        <option value="">Dupliquer la semaine vers…</option>
+        {others.map((g) => (
+          <option key={g.id} value={g.id}>
+            {g.name}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className={styles.btnGhost}
+        disabled={!target || busy}
+        onClick={async () => {
+          if (!confirm(`Dupliquer ${items.length} capture(s) de cette semaine ?`)) return;
+          setBusy(true);
+          try {
+            await duplicateCaptures(
+              items.map((i) => i.id),
+              target
+            );
+            setTarget("");
+            onDone();
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? "…" : "Dupliquer →"}
+      </button>
     </div>
   );
 }
@@ -617,9 +669,17 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
 
       {weeks.map((wk) => (
         <section key={wk.key} className={styles.weekSection}>
-          <h2 className={styles.weekHeader}>
-            {wk.label} <span className={styles.muted}>· {wk.items.length}</span>
-          </h2>
+          <div className={styles.weekHead}>
+            <h2 className={styles.weekHeader}>
+              {wk.label} <span className={styles.muted}>· {wk.items.length}</span>
+            </h2>
+            <WeekDuplicator
+              items={wk.items}
+              groups={groups}
+              currentGroupId={groupId}
+              onDone={refresh}
+            />
+          </div>
           <div className={styles.grid}>
             {wk.items.map((c) => (
               <div
@@ -636,7 +696,7 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
                   <span className={styles.time}>{formatParisTime(c.created_at)}</span>
                 </div>
                 <div className={styles.media}>
-                  <MediaThumb c={c} />
+                  <MediaThumb key={c.previewUrls[0] ?? c.id} c={c} />
                 </div>
                 <div className={styles.user}>
                   {c.username}

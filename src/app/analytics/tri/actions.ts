@@ -28,6 +28,22 @@ function getFallbackUrl(groupId: string, imagePath: string | null): string | nul
   return `${SUPABASE_URL}/storage/v1/object/public/moments/${groupId}/${imagePath}`;
 }
 
+/**
+ * The R2 object key convention has varied (some records prefix the group_id,
+ * some don't, plus a legacy Supabase "moments" bucket). Return every plausible
+ * URL so the client can cascade through them on <img> error.
+ */
+function mediaCandidates(groupId: string, path: string | null): string[] {
+  if (!path || path === "text_mode") return [];
+  if (path.startsWith("http")) return [path];
+  return [
+    `${STORAGE_BASE}/${groupId}/${path}`,
+    `${STORAGE_BASE}/${path}`,
+    `${SUPABASE_URL}/storage/v1/object/public/moments/${groupId}/${path}`,
+    `${SUPABASE_URL}/storage/v1/object/public/moments/${path}`,
+  ];
+}
+
 function inferType(
   imagePath: string | null
 ): "photo" | "video" | "text" | "audio" | "drawing" {
@@ -66,6 +82,7 @@ export interface CaptureRow {
   second_url: string | null;
   thumb_url: string | null;
   fallback_url: string | null;
+  previewUrls: string[];
   reactions: CaptureReaction[];
 }
 
@@ -182,6 +199,11 @@ export async function listGroupCaptures(groupId: string): Promise<CaptureRow[]> 
 
   return rows.map((r) => {
     const prof = profMap.get(r.user_id);
+    const type = inferType(r.image_path);
+    const previewUrls =
+      type === "video"
+        ? mediaCandidates(r.group_id, r.video_thumbnail_path)
+        : mediaCandidates(r.group_id, r.image_path);
     return {
       id: r.id,
       group_id: r.group_id,
@@ -195,11 +217,12 @@ export async function listGroupCaptures(groupId: string): Promise<CaptureRow[]> 
       audio_note_path: r.audio_note_path,
       video_thumbnail_path: r.video_thumbnail_path,
       created_at: r.created_at,
-      type: inferType(r.image_path),
+      type,
       url: getMediaUrl(r.group_id, r.image_path),
       second_url: getMediaUrl(r.group_id, r.second_image_path),
       thumb_url: getMediaUrl(r.group_id, r.video_thumbnail_path),
       fallback_url: getFallbackUrl(r.group_id, r.image_path),
+      previewUrls,
       reactions: reactionsByPhoto.get(r.id) ?? [],
     };
   });
@@ -334,7 +357,9 @@ export async function duplicateCapture(id: string, opts: DuplicateOptions = {}):
     caption_waveform: src.caption_waveform,
     video_thumbnail_path: src.video_thumbnail_path,
     second_video_thumbnail_path: src.second_video_thumbnail_path,
-    created_at: opts.createdAt ?? new Date().toISOString(),
+    // Default: keep the source date (so a duplicated week lands in the same
+    // reveal week). The modal passes an explicit date when relocating.
+    created_at: opts.createdAt ?? src.created_at,
   });
   if (insErr) throw new Error(insErr.message);
 }
