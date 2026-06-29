@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabase-server";
-import { copyObject } from "@/lib/r2-admin";
+import { copyObjectFromCandidates } from "@/lib/r2-admin";
 
 const STORAGE_BASE =
   process.env.NEXT_PUBLIC_R2_PUBLIC_URL || "https://pub-c3c80a82b60448dba090aef503e3931b.r2.dev";
@@ -303,7 +303,8 @@ async function copyMediaToGroup(
   path: string | null
 ): Promise<void> {
   if (!path || path === "text_mode" || path.startsWith("http")) return;
-  await copyObject(`${srcGroup}/${path}`, `${destGroup}/${path}`);
+  // The object may be stored with or without the group prefix.
+  await copyObjectFromCandidates([`${srcGroup}/${path}`, path], `${destGroup}/${path}`);
 }
 
 interface PhotoFull {

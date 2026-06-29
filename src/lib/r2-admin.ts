@@ -44,15 +44,38 @@ export async function uploadObject(
   );
 }
 
-export async function copyObject(srcKey: string, destKey: string): Promise<void> {
-  if (srcKey === destKey) return;
-  await getClient().send(
-    new CopyObjectCommand({
-      Bucket: BUCKET,
-      CopySource: `${BUCKET}/${encodeURI(srcKey)}`,
-      Key: destKey,
-    })
-  );
+function isNoSuchKey(e: unknown): boolean {
+  const err = e as { name?: string; Code?: string };
+  return err?.name === "NoSuchKey" || err?.Code === "NoSuchKey" || err?.name === "NotFound";
+}
+
+/**
+ * Copy the first existing source key to destKey. The R2 key convention has
+ * varied (with/without the group_id prefix), so we probe candidates and skip
+ * gracefully if none exist in R2 (e.g. media that lives only in the legacy
+ * Supabase bucket). Returns true if a copy succeeded.
+ */
+export async function copyObjectFromCandidates(
+  srcKeys: string[],
+  destKey: string
+): Promise<boolean> {
+  for (const srcKey of srcKeys) {
+    if (srcKey === destKey) return true;
+    try {
+      await getClient().send(
+        new CopyObjectCommand({
+          Bucket: BUCKET,
+          CopySource: `${BUCKET}/${encodeURI(srcKey)}`,
+          Key: destKey,
+        })
+      );
+      return true;
+    } catch (e) {
+      if (isNoSuchKey(e)) continue;
+      throw e; // auth / network / config errors should surface
+    }
+  }
+  return false;
 }
 
 export type CaptureType = "photo" | "video" | "audio" | "drawing";
