@@ -23,7 +23,13 @@ export default async function TriPage() {
     return <CodeGate />;
   }
 
-  const { data: groups } = await supabase.from("groups").select("id, name").order("name");
+  // Restrict the tri tool to groups whose name contains "Gobelin" (anywhere,
+  // case-insensitive).
+  const { data: groups } = await supabase
+    .from("groups")
+    .select("id, name")
+    .ilike("name", "%Gobelin%")
+    .order("name");
 
   return <TriClient groups={groups ?? []} />;
 }
