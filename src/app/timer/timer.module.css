@@ -1,0 +1,49 @@
+/* Full-screen countdown, centered on a black background. */
+.page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+  outline: none;
+}
+
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.time {
+  display: inline-flex;
+  align-items: baseline;
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-bold, 700);
+  font-size: clamp(3.5rem, 18vw, 13rem);
+  line-height: 1;
+  color: #ff3f05;
+}
+
+/* Fixed-width cells so the layout never shifts as the digits change, even with
+   a display font that lacks tabular figures. */
+.digit {
+  display: inline-block;
+  width: 0.62em;
+  text-align: center;
+}
+
+.colon {
+  display: inline-block;
+  width: 0.34em;
+  text-align: center;
+}
+
+.done {
+  opacity: 0.6;
+}
