@@ -120,6 +120,22 @@ export function shiftByWeeks(date: Date, weeks: number): Date {
   return new Date(naive.getTime() + (srcOff - dstOff));
 }
 
+/**
+ * The app keys weekly challenges by the Monday (Paris) date string of the
+ * calendar week (lib/challenges.ts getChallengeWeekStart). Derive it from a
+ * reveal week start (Sunday 20:00) using a mid-week date to avoid the
+ * Sunday-evening edge.
+ */
+export function challengeWeekStartForReveal(revealWeekStart: Date): string {
+  const mid = new Date(revealWeekStart.getTime() + 2 * 24 * 3600 * 1000); // ~Tuesday
+  const p = parisParts(mid);
+  const weekday = new Date(Date.UTC(p.y, p.mo - 1, p.day)).getUTCDay(); // 0=Sun
+  const monday = new Date(
+    Date.UTC(p.y, p.mo - 1, p.day - (weekday === 0 ? 6 : weekday - 1))
+  );
+  return monday.toISOString().slice(0, 10);
+}
+
 const weekFmt = new Intl.DateTimeFormat("fr-FR", {
   timeZone: PARIS,
   weekday: "short",

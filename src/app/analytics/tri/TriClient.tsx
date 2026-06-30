@@ -15,8 +15,13 @@ import {
   duplicateCapture,
   duplicateCaptures,
   moveCaptures,
-  shiftCapturesByWeeks,
+  shiftWeek,
+  duplicateWeekToGroup,
   giveCrown,
+  backfillReactions,
+  listAllGroups,
+  listChallengeWeeks,
+  importChallengeWeek,
   addReaction,
   deleteReaction,
 } from "./actions";
@@ -487,11 +492,13 @@ function WeekDuplicator({
   items,
   groups,
   currentGroupId,
+  weekStartIso,
   onDone,
 }: {
   items: CaptureRow[];
   groups: GroupRow[];
   currentGroupId: string;
+  weekStartIso: string;
   onDone: () => void;
 }) {
   const [target, setTarget] = useState("");
@@ -515,10 +522,15 @@ function WeekDuplicator({
         className={styles.btnGhost}
         disabled={!target || busy}
         onClick={async () => {
-          if (!confirm(`Dupliquer ${items.length} capture(s) de cette semaine ?`)) return;
+          if (
+            !confirm(`Dupliquer cette semaine (${items.length} moment(s) + défi) vers ce groupe ?`)
+          )
+            return;
           setBusy(true);
           try {
-            await duplicateCaptures(
+            await duplicateWeekToGroup(
+              currentGroupId,
+              weekStartIso,
               items.map((i) => i.id),
               target
             );
@@ -537,7 +549,17 @@ function WeekDuplicator({
 
 /* ------------------------------ Week shifter ------------------------------ */
 
-function WeekShifter({ items, onDone }: { items: CaptureRow[]; onDone: () => void }) {
+function WeekShifter({
+  items,
+  groupId,
+  weekStartIso,
+  onDone,
+}: {
+  items: CaptureRow[];
+  groupId: string;
+  weekStartIso: string;
+  onDone: () => void;
+}) {
   const [weeks, setWeeks] = useState(1);
   const [busy, setBusy] = useState(false);
 
@@ -545,10 +567,17 @@ function WeekShifter({ items, onDone }: { items: CaptureRow[]; onDone: () => voi
     if (!weeks) return;
     const verb = mode === "move" ? "Déplacer" : "Dupliquer";
     const sign = weeks > 0 ? "+" : "";
-    if (!confirm(`${verb} ${items.length} capture(s) de ${sign}${weeks} semaine(s) ?`)) return;
+    if (
+      !confirm(
+        `${verb} cette semaine (${items.length} moment(s) + défi) de ${sign}${weeks} semaine(s) ?`
+      )
+    )
+      return;
     setBusy(true);
     try {
-      await shiftCapturesByWeeks(
+      await shiftWeek(
+        groupId,
+        weekStartIso,
         items.map((i) => i.id),
         weeks,
         mode
@@ -580,6 +609,131 @@ function WeekShifter({ items, onDone }: { items: CaptureRow[]; onDone: () => voi
       >
         Dupliquer
       </button>
+    </div>
+  );
+}
+
+/* ------------------- Week extras: reactions + challenge ------------------- */
+
+function WeekExtras({
+  items,
+  groupId,
+  weekStartIso,
+  onDone,
+}: {
+  items: CaptureRow[];
+  groupId: string;
+  weekStartIso: string;
+  onDone: () => void;
+}) {
+  const [busyR, setBusyR] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [allGroups, setAllGroups] = useState<GroupRow[]>([]);
+  const [srcGroup, setSrcGroup] = useState("");
+  const [weeks, setWeeks] = useState<{ week_start: string; count: number }[]>([]);
+  const [srcWeek, setSrcWeek] = useState("");
+  const [busyC, setBusyC] = useState(false);
+
+  const backfill = async () => {
+    setBusyR(true);
+    try {
+      const n = await backfillReactions(items.map((i) => i.id));
+      alert(`${n} réaction(s) ajoutée(s).`);
+      onDone();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusyR(false);
+    }
+  };
+
+  const togglePanel = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && allGroups.length === 0) {
+      try {
+        setAllGroups(await listAllGroups());
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  const onSrcGroup = async (id: string) => {
+    setSrcGroup(id);
+    setSrcWeek("");
+    setWeeks([]);
+    if (id) {
+      try {
+        setWeeks(await listChallengeWeeks(id));
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  const doImport = async () => {
+    if (!srcGroup || !srcWeek) return;
+    setBusyC(true);
+    try {
+      await importChallengeWeek(groupId, weekStartIso, srcGroup, srcWeek);
+      setOpen(false);
+      onDone();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusyC(false);
+    }
+  };
+
+  return (
+    <div className={styles.weekDup} style={{ position: "relative" }}>
+      <button type="button" className={styles.btnGhost} disabled={busyR} onClick={backfill}>
+        {busyR ? "…" : "Récupérer réactions"}
+      </button>
+      <button type="button" className={styles.btnGhost} onClick={togglePanel}>
+        Importer défi ▾
+      </button>
+      {open && (
+        <div
+          className={`${styles.reactionPanel} glass-effect`}
+          style={{ width: 260, left: "auto", right: 0 }}
+        >
+          <select
+            className={styles.select}
+            value={srcGroup}
+            onChange={(e) => onSrcGroup(e.target.value)}
+          >
+            <option value="">Groupe source…</option>
+            {allGroups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className={styles.select}
+            value={srcWeek}
+            onChange={(e) => setSrcWeek(e.target.value)}
+            disabled={weeks.length === 0}
+          >
+            <option value="">Semaine source…</option>
+            {weeks.map((w) => (
+              <option key={w.week_start} value={w.week_start}>
+                {w.week_start} ({w.count})
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className={styles.button}
+            disabled={!srcGroup || !srcWeek || busyC}
+            onClick={doImport}
+          >
+            {busyC ? "…" : "Importer le défi"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -781,11 +935,23 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
             </h2>
             <div className={styles.weekTools}>
               <CrownGiver items={wk.items} members={members} onDone={refresh} />
-              <WeekShifter items={wk.items} onDone={refresh} />
+              <WeekExtras
+                items={wk.items}
+                groupId={groupId}
+                weekStartIso={wk.weekStart.toISOString()}
+                onDone={refresh}
+              />
+              <WeekShifter
+                items={wk.items}
+                groupId={groupId}
+                weekStartIso={wk.weekStart.toISOString()}
+                onDone={refresh}
+              />
               <WeekDuplicator
                 items={wk.items}
                 groups={groups}
                 currentGroupId={groupId}
+                weekStartIso={wk.weekStart.toISOString()}
                 onDone={refresh}
               />
             </div>

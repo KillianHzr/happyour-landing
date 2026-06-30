@@ -3,7 +3,12 @@
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabase-server";
 import { copyObjectFromCandidates } from "@/lib/r2-admin";
-import { shiftByWeeks, getRevealWeekStart, getRevealWeekEnd } from "@/lib/reveal-week";
+import {
+  shiftByWeeks,
+  getRevealWeekStart,
+  getRevealWeekEnd,
+  challengeWeekStartForReveal,
+} from "@/lib/reveal-week";
 
 const STORAGE_BASE =
   process.env.NEXT_PUBLIC_R2_PUBLIC_URL || "https://pub-c3c80a82b60448dba090aef503e3931b.r2.dev";
@@ -340,6 +345,16 @@ export interface DuplicateOptions {
   createdAt?: string; // ISO UTC
 }
 
+async function copyReactions(srcPhotoId: string, dstPhotoId: string): Promise<void> {
+  const { data } = await supabase
+    .from("reactions")
+    .select("user_id, emoji, sticker_id, created_at")
+    .eq("photo_id", srcPhotoId);
+  if (data && data.length) {
+    await supabase.from("reactions").insert(data.map((r) => ({ ...r, photo_id: dstPhotoId })));
+  }
+}
+
 export async function duplicateCapture(id: string, opts: DuplicateOptions = {}): Promise<void> {
   await requireAuth();
   const { data, error } = await supabase.from("photos").select("*").eq("id", id).single();
@@ -347,23 +362,29 @@ export async function duplicateCapture(id: string, opts: DuplicateOptions = {}):
   const src = data as PhotoFull;
   const targetGroup = opts.targetGroupId ?? src.group_id;
   if (targetGroup !== src.group_id) await copyAllMedia(src, targetGroup);
-  const { error: insErr } = await supabase.from("photos").insert({
-    group_id: targetGroup,
-    user_id: opts.targetUserId ?? src.user_id,
-    image_path: src.image_path,
-    second_image_path: src.second_image_path,
-    note: src.note,
-    second_note: src.second_note,
-    audio_note_path: src.audio_note_path,
-    waveform: src.waveform,
-    caption_waveform: src.caption_waveform,
-    video_thumbnail_path: src.video_thumbnail_path,
-    second_video_thumbnail_path: src.second_video_thumbnail_path,
-    // Default: keep the source date (so a duplicated week lands in the same
-    // reveal week). The modal passes an explicit date when relocating.
-    created_at: opts.createdAt ?? src.created_at,
-  });
+  const { data: ins, error: insErr } = await supabase
+    .from("photos")
+    .insert({
+      group_id: targetGroup,
+      user_id: opts.targetUserId ?? src.user_id,
+      image_path: src.image_path,
+      second_image_path: src.second_image_path,
+      note: src.note,
+      second_note: src.second_note,
+      audio_note_path: src.audio_note_path,
+      waveform: src.waveform,
+      caption_waveform: src.caption_waveform,
+      video_thumbnail_path: src.video_thumbnail_path,
+      second_video_thumbnail_path: src.second_video_thumbnail_path,
+      // Default: keep the source date (so a duplicated week lands in the same
+      // reveal week). The modal passes an explicit date when relocating.
+      created_at: opts.createdAt ?? src.created_at,
+    })
+    .select("id")
+    .single();
   if (insErr) throw new Error(insErr.message);
+  // Carry the reactions over to the copy.
+  await copyReactions(id, ins.id as string);
 }
 
 export async function duplicateCaptures(
@@ -420,6 +441,256 @@ export async function moveCaptures(ids: string[], targetGroupId: string): Promis
       .eq("id", row.id);
     if (updErr) throw new Error(updErr.message);
   }
+}
+
+/* --------------------------- Weekly challenges ---------------------------- */
+
+/** Move the weekly challenge(s) of (group, srcWeekStart) to another week and/or group. */
+async function moveChallengeWeek(
+  groupId: string,
+  srcWeekStart: string,
+  dstWeekStart: string,
+  dstGroupId?: string
+): Promise<void> {
+  const patch: Record<string, string> = { week_start: dstWeekStart };
+  if (dstGroupId && dstGroupId !== groupId) patch.group_id = dstGroupId;
+  await supabase
+    .from("weekly_challenges")
+    .update(patch)
+    .eq("group_id", groupId)
+    .eq("week_start", srcWeekStart);
+}
+
+/** Deep-copy the weekly challenge(s) (+responses +votes) to another week/group. */
+async function duplicateChallengeWeek(
+  srcGroupId: string,
+  srcWeekStart: string,
+  dstGroupId: string,
+  dstWeekStart: string
+): Promise<void> {
+  const { data: challenges } = await supabase
+    .from("weekly_challenges")
+    .select("*")
+    .eq("group_id", srcGroupId)
+    .eq("week_start", srcWeekStart);
+
+  for (const ch of (challenges ?? []) as Record<string, unknown>[]) {
+    const oldId = ch.id as string;
+    const { id: _id, created_at: _ca, ...rest } = ch;
+    void _id;
+    void _ca;
+    const { data: newCh, error: chErr } = await supabase
+      .from("weekly_challenges")
+      .insert({ ...rest, group_id: dstGroupId, week_start: dstWeekStart })
+      .select("id")
+      .single();
+    if (chErr) throw new Error(chErr.message);
+    const newChId = newCh.id as string;
+
+    const { data: responses } = await supabase
+      .from("challenge_responses")
+      .select("*")
+      .eq("challenge_id", oldId);
+
+    const respIdMap = new Map<string, string>();
+    for (const r of (responses ?? []) as Record<string, unknown>[]) {
+      const oldRid = r.id as string;
+      const { id: _rid, created_at: _rca, ...rrest } = r;
+      void _rid;
+      void _rca;
+      if (dstGroupId !== srcGroupId) {
+        await copyMediaToGroup(srcGroupId, dstGroupId, (rrest.image_path as string) ?? null);
+        await copyMediaToGroup(srcGroupId, dstGroupId, (rrest.second_image_path as string) ?? null);
+        await copyMediaToGroup(srcGroupId, dstGroupId, (rrest.video_thumbnail_path as string) ?? null);
+        await copyMediaToGroup(
+          srcGroupId,
+          dstGroupId,
+          (rrest.second_video_thumbnail_path as string) ?? null
+        );
+      }
+      const { data: newR, error: rErr } = await supabase
+        .from("challenge_responses")
+        .insert({ ...rrest, challenge_id: newChId })
+        .select("id")
+        .single();
+      if (rErr) throw new Error(rErr.message);
+      respIdMap.set(oldRid, newR.id as string);
+    }
+
+    const { data: votes } = await supabase
+      .from("challenge_votes")
+      .select("*")
+      .eq("challenge_id", oldId);
+
+    for (const v of (votes ?? []) as Record<string, unknown>[]) {
+      const { id: _vid, created_at: _vca, ...vrest } = v;
+      void _vid;
+      void _vca;
+      const mappedResponse = respIdMap.get(v.response_id as string) ?? (v.response_id as string);
+      await supabase
+        .from("challenge_votes")
+        .insert({ ...vrest, challenge_id: newChId, response_id: mappedResponse });
+    }
+  }
+}
+
+/**
+ * Shift a whole reveal week (its moments AND its weekly challenge) by N weeks.
+ * "move" rewrites dates/week_start in place; "duplicate" creates shifted copies
+ * (moments + reactions + challenge + responses + votes) in the same group.
+ */
+export async function shiftWeek(
+  groupId: string,
+  weekStartIso: string,
+  ids: string[],
+  weeks: number,
+  mode: "move" | "duplicate"
+): Promise<void> {
+  await requireAuth();
+  if (!Number.isInteger(weeks) || weeks === 0) return;
+  const srcReveal = new Date(weekStartIso);
+  const dstReveal = shiftByWeeks(srcReveal, weeks);
+  const srcCWS = challengeWeekStartForReveal(srcReveal);
+  const dstCWS = challengeWeekStartForReveal(dstReveal);
+
+  if (mode === "move") {
+    await shiftCapturesByWeeks(ids, weeks, "move");
+    await moveChallengeWeek(groupId, srcCWS, dstCWS);
+  } else {
+    await shiftCapturesByWeeks(ids, weeks, "duplicate");
+    await duplicateChallengeWeek(groupId, srcCWS, groupId, dstCWS);
+  }
+}
+
+/**
+ * Duplicate a whole reveal week into another group, keeping the same dates:
+ * moments (+reactions, +R2 copy) and the weekly challenge (+responses +votes).
+ */
+export async function duplicateWeekToGroup(
+  groupId: string,
+  weekStartIso: string,
+  ids: string[],
+  targetGroupId: string
+): Promise<void> {
+  await requireAuth();
+  if (!targetGroupId || targetGroupId === groupId) return;
+  for (const id of ids) {
+    await duplicateCapture(id, { targetGroupId });
+  }
+  const cws = challengeWeekStartForReveal(new Date(weekStartIso));
+  await duplicateChallengeWeek(groupId, cws, targetGroupId, cws);
+}
+
+/* -------- Backfill onto an already-sorted week (no re-sorting needed) ------ */
+
+/** All groups (unfiltered) — used to pick a challenge source, even non-Gobelin. */
+export async function listAllGroups(): Promise<GroupRow[]> {
+  await requireAuth();
+  const { data, error } = await supabase.from("groups").select("id, name").order("name");
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+/** Distinct challenge weeks (week_start) available in a source group. */
+export async function listChallengeWeeks(
+  groupId: string
+): Promise<{ week_start: string; count: number }[]> {
+  await requireAuth();
+  const { data, error } = await supabase
+    .from("weekly_challenges")
+    .select("week_start")
+    .eq("group_id", groupId);
+  if (error) throw new Error(error.message);
+  const counts = new Map<string, number>();
+  for (const r of data ?? []) {
+    const ws = r.week_start as string;
+    counts.set(ws, (counts.get(ws) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([week_start, count]) => ({ week_start, count }))
+    .sort((a, b) => (a.week_start < b.week_start ? 1 : -1));
+}
+
+/**
+ * Copy a challenge (+responses +votes) from a source (group, week_start) onto
+ * an already-sorted target reveal week. Refuses if the target week already has
+ * a challenge.
+ */
+export async function importChallengeWeek(
+  targetGroupId: string,
+  targetWeekStartIso: string,
+  srcGroupId: string,
+  srcWeekStart: string
+): Promise<void> {
+  await requireAuth();
+  const targetCws = challengeWeekStartForReveal(new Date(targetWeekStartIso));
+  const { data: existing } = await supabase
+    .from("weekly_challenges")
+    .select("id")
+    .eq("group_id", targetGroupId)
+    .eq("week_start", targetCws)
+    .limit(1);
+  if (existing && existing.length) {
+    throw new Error("Un défi existe déjà pour cette semaine dans ce groupe.");
+  }
+  await duplicateChallengeWeek(srcGroupId, srcWeekStart, targetGroupId, targetCws);
+}
+
+/**
+ * Backfill reactions onto moments that were duplicated (and therefore lost
+ * them). Matches each target photo to source photos sharing the same
+ * image_path (the originals/other copies) and copies their reactions,
+ * de-duplicated by (user, emoji). Skips text-only and already-reacted photos.
+ * Returns the number of reactions added.
+ */
+export async function backfillReactions(ids: string[]): Promise<number> {
+  await requireAuth();
+  if (ids.length === 0) return 0;
+  const { data: targets, error } = await supabase
+    .from("photos")
+    .select("id, image_path")
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+
+  let added = 0;
+  for (const t of targets ?? []) {
+    const ip = t.image_path as string | null;
+    if (!ip || ip === "text_mode") continue;
+
+    const { count: existingCount } = await supabase
+      .from("reactions")
+      .select("id", { count: "exact", head: true })
+      .eq("photo_id", t.id);
+    if ((existingCount ?? 0) > 0) continue;
+
+    const { data: sources } = await supabase
+      .from("photos")
+      .select("id")
+      .eq("image_path", ip)
+      .neq("id", t.id);
+    const srcIds = (sources ?? []).map((s) => s.id);
+    if (srcIds.length === 0) continue;
+
+    const { data: reacts } = await supabase
+      .from("reactions")
+      .select("user_id, emoji, sticker_id, created_at")
+      .in("photo_id", srcIds);
+    if (!reacts || reacts.length === 0) continue;
+
+    const seen = new Set<string>();
+    const toInsert: Record<string, unknown>[] = [];
+    for (const r of reacts) {
+      const key = `${r.user_id}|${r.emoji ?? r.sticker_id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      toInsert.push({ ...r, photo_id: t.id });
+    }
+    if (toInsert.length) {
+      const { error: insErr } = await supabase.from("reactions").insert(toInsert);
+      if (!insErr) added += toInsert.length;
+    }
+  }
+  return added;
 }
 
 /**
