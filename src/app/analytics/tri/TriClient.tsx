@@ -639,7 +639,11 @@ function WeekExtras({
     setBusyR(true);
     try {
       const n = await backfillReactions(items.map((i) => i.id));
-      alert(`${n} réaction(s) ajoutée(s).`);
+      alert(
+        n > 0
+          ? `✅ ${n} réaction(s) récupérée(s) et ajoutée(s) sur les moments de la semaine.`
+          : "Aucune réaction à récupérer : soit les moments sont en texte seul, soit les moments d'origine (même média) sont introuvables ou n'avaient pas de réactions."
+      );
       onDone();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Erreur");
