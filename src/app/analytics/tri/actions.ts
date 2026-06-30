@@ -469,19 +469,20 @@ async function moveChallengeWeek(
     .eq("week_start", srcWeekStart);
 }
 
-/** Deep-copy the weekly challenge(s) (+responses +votes) to another week/group. */
+/** Deep-copy the weekly challenge(s) (+responses +votes) to another week/group. Returns count copied. */
 async function duplicateChallengeWeek(
   srcGroupId: string,
   srcWeekStart: string,
   dstGroupId: string,
   dstWeekStart: string
-): Promise<void> {
+): Promise<number> {
   const { data: challenges } = await supabase
     .from("weekly_challenges")
     .select("*")
     .eq("group_id", srcGroupId)
     .eq("week_start", srcWeekStart);
 
+  let copied = 0;
   for (const ch of (challenges ?? []) as Record<string, unknown>[]) {
     const oldId = ch.id as string;
     const { id: _id, created_at: _ca, ...rest } = ch;
@@ -539,7 +540,9 @@ async function duplicateChallengeWeek(
         .from("challenge_votes")
         .insert({ ...vrest, challenge_id: newChId, response_id: mappedResponse });
     }
+    copied++;
   }
+  return copied;
 }
 
 /**
@@ -619,29 +622,36 @@ export async function listChallengeWeeks(
     .sort((a, b) => (a.week_start < b.week_start ? 1 : -1));
 }
 
+/** Delete the weekly challenge(s) (+responses +votes) of (group, week_start). */
+async function deleteChallengeWeek(groupId: string, weekStart: string): Promise<void> {
+  const { data: chs } = await supabase
+    .from("weekly_challenges")
+    .select("id")
+    .eq("group_id", groupId)
+    .eq("week_start", weekStart);
+  const ids = (chs ?? []).map((c) => c.id as string);
+  if (ids.length === 0) return;
+  await supabase.from("challenge_votes").delete().in("challenge_id", ids);
+  await supabase.from("challenge_responses").delete().in("challenge_id", ids);
+  // Detach any custom-queue links so the challenge rows can be removed.
+  await supabase.from("challenge_queue_custom").update({ challenge_id: null }).in("challenge_id", ids);
+  await supabase.from("weekly_challenges").delete().in("id", ids);
+}
+
 /**
  * Copy a challenge (+responses +votes) from a source (group, week_start) onto
- * an already-sorted target reveal week. Refuses if the target week already has
- * a challenge.
+ * a target reveal week, REPLACING any challenge already present that week.
  */
 export async function importChallengeWeek(
   targetGroupId: string,
   targetWeekStartIso: string,
   srcGroupId: string,
   srcWeekStart: string
-): Promise<void> {
+): Promise<number> {
   await requireAuth();
   const targetCws = challengeWeekStartForReveal(new Date(targetWeekStartIso));
-  const { data: existing } = await supabase
-    .from("weekly_challenges")
-    .select("id")
-    .eq("group_id", targetGroupId)
-    .eq("week_start", targetCws)
-    .limit(1);
-  if (existing && existing.length) {
-    throw new Error("Un défi existe déjà pour cette semaine dans ce groupe.");
-  }
-  await duplicateChallengeWeek(srcGroupId, srcWeekStart, targetGroupId, targetCws);
+  await deleteChallengeWeek(targetGroupId, targetCws);
+  return duplicateChallengeWeek(srcGroupId, srcWeekStart, targetGroupId, targetCws);
 }
 
 /**

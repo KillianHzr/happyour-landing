@@ -29,6 +29,8 @@ import {
 import {
   bucketByWeek,
   formatParisTime,
+  formatRevealWeekLabel,
+  getRevealWeekStart,
   parisInputValueToUtc,
   utcToParisInputValue,
 } from "@/lib/reveal-week";
@@ -681,7 +683,12 @@ function WeekExtras({
     if (!srcGroup || !srcWeek) return;
     setBusyC(true);
     try {
-      await importChallengeWeek(groupId, weekStartIso, srcGroup, srcWeek);
+      const n = await importChallengeWeek(groupId, weekStartIso, srcGroup, srcWeek);
+      alert(
+        n > 0
+          ? `✅ ${n} défi(s) importé(s) dans cette semaine (les défis présents ont été remplacés).`
+          : "La semaine source ne contient aucun défi à importer."
+      );
       setOpen(false);
       onDone();
     } catch (e) {
@@ -723,11 +730,16 @@ function WeekExtras({
             disabled={weeks.length === 0}
           >
             <option value="">Semaine source…</option>
-            {weeks.map((w) => (
-              <option key={w.week_start} value={w.week_start}>
-                {w.week_start} ({w.count})
-              </option>
-            ))}
+            {weeks.map((w) => {
+              const label = formatRevealWeekLabel(
+                getRevealWeekStart(new Date(`${w.week_start}T12:00:00`))
+              );
+              return (
+                <option key={w.week_start} value={w.week_start}>
+                  {label} · {w.count} défi
+                </option>
+              );
+            })}
           </select>
           <button
             type="button"
