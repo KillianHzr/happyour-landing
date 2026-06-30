@@ -13,7 +13,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const parkinsans = Parkinsans({ subsets: ["latin"], variable: "--font-parkinsans" });
 
 export const metadata: Metadata = {
-  title: "HappyOur - Beta Test",
+  title: "Disclose",
   description: "Capturez vos moments intimes avec vos cercles proches et revivez votre semaine.",
   icons: {
     icon: "/icon.svg",

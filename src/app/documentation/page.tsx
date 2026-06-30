@@ -3,8 +3,8 @@ import styles from "./documentation.module.css";
 import pageStyles from "../page.module.css";
 
 export const metadata: Metadata = {
-  title: "HappyOur — Documentation",
-  description: "Documentation de l'application HappyOur.",
+  title: "Disclose — Documentation",
+  description: "Documentation de l'application Disclose.",
 };
 
 export default function Documentation() {

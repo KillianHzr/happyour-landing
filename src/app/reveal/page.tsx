@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import RevealApp from "./RevealApp";
 
 export const metadata: Metadata = {
-  title: "HappyOur — Reveal",
+  title: "Disclose — Reveal",
   description: "Revivez vos moments partagés de la semaine.",
   robots: { index: false, follow: false },
 };

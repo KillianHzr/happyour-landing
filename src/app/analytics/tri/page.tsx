@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase-server";
 import TriClient from "./TriClient";
 
 export const metadata: Metadata = {
-  title: "HappyOur — Tri Reveal",
+  title: "Disclose — Tri Reveal",
   robots: {
     index: false,
     follow: false,
