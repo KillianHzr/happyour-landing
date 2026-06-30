@@ -4,7 +4,8 @@
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
-  overflow: hidden;
+  /* visible so card/week popovers aren't clipped (bg glows are fixed anyway) */
+  overflow: visible;
 }
 
 .header {
@@ -164,11 +165,28 @@
 }
 
 .card {
+  position: relative;
   border-radius: 18px;
   padding: 0.85rem;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+}
+
+/*
+ * glass-effect (backdrop-filter) makes every card/section its own stacking
+ * context, so an open popover would be painted UNDER later cards/sections.
+ * Lift whichever element currently contains an open popover above its siblings.
+ */
+.weekSection:has(.reactionPanel) {
+  z-index: 100;
+}
+.weekHead:has(.reactionPanel) {
+  position: relative;
+  z-index: 100;
+}
+.card:has(.reactionPanel) {
+  z-index: 100;
 }
 .cardSel {
   outline: 2px solid var(--white);
@@ -272,7 +290,7 @@
   position: absolute;
   bottom: 130%;
   left: 0;
-  z-index: 10;
+  z-index: 200;
   padding: 0.6rem;
   border-radius: 12px;
   display: flex;
