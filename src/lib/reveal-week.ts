@@ -109,6 +109,17 @@ export function getRevealWeekEnd(weekStart: Date): Date {
   return parisWallClockToUtc(p.y, p.mo, p.day + 7, REVEAL_HOUR, 0);
 }
 
+/**
+ * Shift an instant by N reveal-weeks while preserving the Paris wall-clock
+ * (same weekday + same local time), correcting for any DST change crossed.
+ */
+export function shiftByWeeks(date: Date, weeks: number): Date {
+  const naive = new Date(date.getTime() + weeks * 7 * 24 * 3600 * 1000);
+  const srcOff = tzOffsetMs(date, PARIS);
+  const dstOff = tzOffsetMs(naive, PARIS);
+  return new Date(naive.getTime() + (srcOff - dstOff));
+}
+
 const weekFmt = new Intl.DateTimeFormat("fr-FR", {
   timeZone: PARIS,
   weekday: "short",

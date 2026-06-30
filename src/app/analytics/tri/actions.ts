@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabase-server";
 import { copyObjectFromCandidates } from "@/lib/r2-admin";
+import { shiftByWeeks } from "@/lib/reveal-week";
 
 const STORAGE_BASE =
   process.env.NEXT_PUBLIC_R2_PUBLIC_URL || "https://pub-c3c80a82b60448dba090aef503e3931b.r2.dev";
@@ -372,6 +373,37 @@ export async function duplicateCaptures(
   await requireAuth();
   for (const id of ids) {
     await duplicateCapture(id, { targetGroupId });
+  }
+}
+
+/**
+ * Shift a set of captures by N reveal-weeks, preserving weekday + local time.
+ * mode "move" rewrites created_at in place; "duplicate" creates shifted copies
+ * (same group/user, so no R2 copy is needed).
+ */
+export async function shiftCapturesByWeeks(
+  ids: string[],
+  weeks: number,
+  mode: "move" | "duplicate"
+): Promise<void> {
+  await requireAuth();
+  if (!Number.isInteger(weeks) || weeks === 0) return;
+  const { data, error } = await supabase
+    .from("photos")
+    .select("id, created_at")
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+  for (const row of data ?? []) {
+    const newDate = shiftByWeeks(new Date(row.created_at), weeks).toISOString();
+    if (mode === "move") {
+      const { error: updErr } = await supabase
+        .from("photos")
+        .update({ created_at: newDate })
+        .eq("id", row.id);
+      if (updErr) throw new Error(updErr.message);
+    } else {
+      await duplicateCapture(row.id, { createdAt: newDate });
+    }
   }
 }
 

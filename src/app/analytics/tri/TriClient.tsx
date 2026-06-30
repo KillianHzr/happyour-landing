@@ -15,6 +15,7 @@ import {
   duplicateCapture,
   duplicateCaptures,
   moveCaptures,
+  shiftCapturesByWeeks,
   addReaction,
   deleteReaction,
 } from "./actions";
@@ -533,6 +534,55 @@ function WeekDuplicator({
   );
 }
 
+/* ------------------------------ Week shifter ------------------------------ */
+
+function WeekShifter({ items, onDone }: { items: CaptureRow[]; onDone: () => void }) {
+  const [weeks, setWeeks] = useState(1);
+  const [busy, setBusy] = useState(false);
+
+  const run = async (mode: "move" | "duplicate") => {
+    if (!weeks) return;
+    const verb = mode === "move" ? "Déplacer" : "Dupliquer";
+    const sign = weeks > 0 ? "+" : "";
+    if (!confirm(`${verb} ${items.length} capture(s) de ${sign}${weeks} semaine(s) ?`)) return;
+    setBusy(true);
+    try {
+      await shiftCapturesByWeeks(
+        items.map((i) => i.id),
+        weeks,
+        mode
+      );
+      onDone();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={styles.weekDup}>
+      <span className={styles.muted}>Décaler de</span>
+      <input
+        type="number"
+        className={styles.weekInput}
+        value={weeks}
+        onChange={(e) => setWeeks(parseInt(e.target.value || "0", 10) || 0)}
+      />
+      <span className={styles.muted}>sem.</span>
+      <button type="button" className={styles.btnGhost} disabled={busy || !weeks} onClick={() => run("move")}>
+        Déplacer
+      </button>
+      <button
+        type="button"
+        className={styles.btnGhost}
+        disabled={busy || !weeks}
+        onClick={() => run("duplicate")}
+      >
+        Dupliquer
+      </button>
+    </div>
+  );
+}
+
 /* ------------------------------ Main client ------------------------------- */
 
 export default function TriClient({ groups }: { groups: GroupRow[] }) {
@@ -673,12 +723,15 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
             <h2 className={styles.weekHeader}>
               {wk.label} <span className={styles.muted}>· {wk.items.length}</span>
             </h2>
-            <WeekDuplicator
-              items={wk.items}
-              groups={groups}
-              currentGroupId={groupId}
-              onDone={refresh}
-            />
+            <div className={styles.weekTools}>
+              <WeekShifter items={wk.items} onDone={refresh} />
+              <WeekDuplicator
+                items={wk.items}
+                groups={groups}
+                currentGroupId={groupId}
+                onDone={refresh}
+              />
+            </div>
           </div>
           <div className={styles.grid}>
             {wk.items.map((c) => (
