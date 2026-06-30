@@ -16,6 +16,7 @@ import {
   duplicateCaptures,
   moveCaptures,
   shiftCapturesByWeeks,
+  giveCrown,
   addReaction,
   deleteReaction,
 } from "./actions";
@@ -583,6 +584,61 @@ function WeekShifter({ items, onDone }: { items: CaptureRow[]; onDone: () => voi
   );
 }
 
+/* ------------------------------ Crown giver ------------------------------- */
+
+function CrownGiver({
+  items,
+  members,
+  onDone,
+}: {
+  items: CaptureRow[];
+  members: MemberRow[];
+  onDone: () => void;
+}) {
+  // Members who actually have a moment in this week (crown requires a post).
+  const posters = members.filter((m) => items.some((c) => c.user_id === m.user_id));
+  const [userId, setUserId] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (posters.length === 0) return null;
+
+  return (
+    <div className={styles.weekDup}>
+      <span className={styles.muted}>👑</span>
+      <select className={styles.select} value={userId} onChange={(e) => setUserId(e.target.value)}>
+        <option value="">Donner la couronne à…</option>
+        {posters.map((m) => (
+          <option key={m.user_id} value={m.user_id}>
+            {m.username}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className={styles.btnGhost}
+        disabled={!userId || busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            await giveCrown(
+              items.map((i) => i.id),
+              userId
+            );
+            setUserId("");
+            onDone();
+          } catch (e) {
+            alert(e instanceof Error ? e.message : "Erreur");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? "…" : "OK"}
+      </button>
+    </div>
+  );
+}
+
 /* ------------------------------ Main client ------------------------------- */
 
 export default function TriClient({ groups }: { groups: GroupRow[] }) {
@@ -724,6 +780,7 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
               {wk.label} <span className={styles.muted}>· {wk.items.length}</span>
             </h2>
             <div className={styles.weekTools}>
+              <CrownGiver items={wk.items} members={members} onDone={refresh} />
               <WeekShifter items={wk.items} onDone={refresh} />
               <WeekDuplicator
                 items={wk.items}

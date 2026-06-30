@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabase-server";
 import { copyObjectFromCandidates } from "@/lib/r2-admin";
-import { shiftByWeeks } from "@/lib/reveal-week";
+import { shiftByWeeks, getRevealWeekStart, getRevealWeekEnd } from "@/lib/reveal-week";
 
 const STORAGE_BASE =
   process.env.NEXT_PUBLIC_R2_PUBLIC_URL || "https://pub-c3c80a82b60448dba090aef503e3931b.r2.dev";
@@ -420,6 +420,69 @@ export async function moveCaptures(ids: string[], targetGroupId: string): Promis
       .eq("id", row.id);
     if (updErr) throw new Error(updErr.message);
   }
+}
+
+/**
+ * Give the in-app crown to a user for a given week. The crown is not stored:
+ * the app awards it to the group member whose most recent moment has the
+ * latest created_at. So we bump that user's most recent moment in the week to
+ * just after the latest moment of the week (clamped before the next reveal),
+ * and ensure they are a member of the group.
+ *
+ * `ids` are the capture ids of the week (from the client). Returns the new
+ * crown holder's user_id, or throws if they have no moment in that week.
+ */
+export async function giveCrown(ids: string[], userId: string): Promise<void> {
+  await requireAuth();
+  if (ids.length === 0) return;
+  const { data, error } = await supabase
+    .from("photos")
+    .select("id, user_id, group_id, created_at")
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+  const rows = data ?? [];
+  if (rows.length === 0) return;
+
+  const groupId = rows[0].group_id as string;
+  const times = rows.map((r) => new Date(r.created_at).getTime());
+  const maxT = Math.max(...times);
+
+  const mine = rows
+    .filter((r) => r.user_id === userId)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  if (mine.length === 0) {
+    throw new Error("Cet utilisateur n'a aucun moment dans cette semaine.");
+  }
+
+  const myLatest = mine[0];
+  // Already the most recent? Then they already hold the crown.
+  if (new Date(myLatest.created_at).getTime() >= maxT) {
+    await supabase
+      .from("group_members")
+      .upsert(
+        { group_id: groupId, user_id: userId, role: "member" },
+        { onConflict: "group_id,user_id", ignoreDuplicates: true }
+      );
+    return;
+  }
+
+  const weekStart = getRevealWeekStart(new Date(maxT));
+  const weekEnd = getRevealWeekEnd(weekStart).getTime();
+  let target = maxT + 60_000; // 1 min after current latest
+  if (target >= weekEnd) target = weekEnd - 60_000;
+
+  await supabase
+    .from("group_members")
+    .upsert(
+      { group_id: groupId, user_id: userId, role: "member" },
+      { onConflict: "group_id,user_id", ignoreDuplicates: true }
+    );
+
+  const { error: updErr } = await supabase
+    .from("photos")
+    .update({ created_at: new Date(target).toISOString() })
+    .eq("id", myLatest.id);
+  if (updErr) throw new Error(updErr.message);
 }
 
 export async function addReaction(
