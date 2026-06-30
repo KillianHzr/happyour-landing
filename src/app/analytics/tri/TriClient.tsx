@@ -10,6 +10,7 @@ import {
   listGroupCaptures,
   listGroupChallenges,
   listGroupMembers,
+  addAuthorsAsMembers,
   searchProfiles,
   createCapture,
   updateCapture,
@@ -1004,6 +1005,25 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
         </button>
         <button type="button" className={styles.btnGhost} onClick={refresh} disabled={loading}>
           {loading ? "Chargement…" : "Rafraîchir"}
+        </button>
+        <button
+          type="button"
+          className={styles.btnGhost}
+          onClick={async () => {
+            try {
+              const n = await addAuthorsAsMembers(groupId);
+              alert(
+                n > 0
+                  ? `✅ ${n} auteur(s) ajouté(s) comme membre(s) — les noms ne seront plus "Anonyme".`
+                  : "Tous les auteurs sont déjà membres."
+              );
+              refresh();
+            } catch (e) {
+              alert(e instanceof Error ? e.message : "Erreur");
+            }
+          }}
+        >
+          Ajouter les auteurs comme membres
         </button>
       </div>
 

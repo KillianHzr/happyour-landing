@@ -111,6 +111,59 @@ export async function listGroups(): Promise<GroupRow[]> {
   return data ?? [];
 }
 
+/**
+ * Add every author found in the group (moment authors, reaction authors,
+ * challenge responders and challenge targets) as a group member. The app
+ * resolves usernames via the members list (and profile RLS requires a shared
+ * group), so non-member authors show as "Anonyme" until added. Returns count added.
+ */
+export async function addAuthorsAsMembers(groupId: string): Promise<number> {
+  await requireAuth();
+  const userIds = new Set<string>();
+
+  const { data: photos } = await supabase.from("photos").select("id, user_id").eq("group_id", groupId);
+  const photoIds = (photos ?? []).map((p) => p.id);
+  for (const p of photos ?? []) if (p.user_id) userIds.add(p.user_id as string);
+
+  if (photoIds.length) {
+    const { data: reacts } = await supabase.from("reactions").select("user_id").in("photo_id", photoIds);
+    for (const r of reacts ?? []) if (r.user_id) userIds.add(r.user_id as string);
+  }
+
+  const { data: chs } = await supabase
+    .from("weekly_challenges")
+    .select("id, target_user_id")
+    .eq("group_id", groupId);
+  const chIds = (chs ?? []).map((c) => c.id);
+  for (const c of chs ?? []) if (c.target_user_id) userIds.add(c.target_user_id as string);
+  if (chIds.length) {
+    const { data: resp } = await supabase
+      .from("challenge_responses")
+      .select("user_id")
+      .in("challenge_id", chIds);
+    for (const r of resp ?? []) if (r.user_id) userIds.add(r.user_id as string);
+  }
+
+  if (userIds.size === 0) return 0;
+
+  const { data: existing } = await supabase
+    .from("group_members")
+    .select("user_id")
+    .eq("group_id", groupId);
+  const have = new Set((existing ?? []).map((m) => m.user_id));
+  const toAdd = [...userIds].filter((id) => !have.has(id));
+  if (toAdd.length === 0) return 0;
+
+  const { error } = await supabase
+    .from("group_members")
+    .upsert(
+      toAdd.map((user_id) => ({ group_id: groupId, user_id, role: "member" })),
+      { onConflict: "group_id,user_id", ignoreDuplicates: true }
+    );
+  if (error) throw new Error(error.message);
+  return toAdd.length;
+}
+
 export async function listGroupMembers(groupId: string): Promise<MemberRow[]> {
   await requireAuth();
   const { data, error } = await supabase
