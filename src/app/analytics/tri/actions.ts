@@ -234,6 +234,90 @@ export async function listGroupCaptures(groupId: string): Promise<CaptureRow[]> 
   });
 }
 
+export interface ChallengeResponseRow {
+  id: string;
+  user_id: string;
+  username: string;
+  is_target_response: boolean;
+  note: string | null;
+  type: "photo" | "video" | "text" | "audio" | "drawing";
+  previewUrls: string[];
+}
+
+export interface ChallengeRow {
+  id: string;
+  week_start: string;
+  period: number | null;
+  target_user_id: string | null;
+  target_username: string | null;
+  theme_label: string | null;
+  responses: ChallengeResponseRow[];
+}
+
+export async function listGroupChallenges(groupId: string): Promise<ChallengeRow[]> {
+  await requireAuth();
+  const { data: chs, error } = await supabase
+    .from("weekly_challenges")
+    .select("*")
+    .eq("group_id", groupId);
+  if (error) throw new Error(error.message);
+  const rows = (chs ?? []) as Record<string, unknown>[];
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((r) => r.id as string);
+  const themeIds = [...new Set(rows.map((r) => r.theme_id).filter(Boolean))] as string[];
+
+  const [respRes, themesRes] = await Promise.all([
+    supabase.from("challenge_responses").select("*").in("challenge_id", ids),
+    themeIds.length
+      ? supabase.from("challenge_themes").select("id, label").in("id", themeIds)
+      : Promise.resolve({ data: [] as { id: string; label: string }[] }),
+  ]);
+
+  const responses = (respRes.data ?? []) as Record<string, unknown>[];
+  const themeMap = new Map(
+    ((themesRes.data ?? []) as { id: string; label: string }[]).map((t) => [t.id, t.label])
+  );
+
+  const userIds = [
+    ...new Set([
+      ...rows.map((r) => r.target_user_id).filter(Boolean),
+      ...responses.map((r) => r.user_id),
+    ]),
+  ] as string[];
+  const { data: profs } = userIds.length
+    ? await supabase.from("profiles").select("id, username").in("id", userIds)
+    : { data: [] as { id: string; username: string }[] };
+  const profMap = new Map((profs ?? []).map((p) => [p.id, p.username]));
+
+  const byChallenge = new Map<string, ChallengeResponseRow[]>();
+  for (const r of responses) {
+    const cid = r.challenge_id as string;
+    const arr = byChallenge.get(cid) ?? [];
+    arr.push({
+      id: r.id as string,
+      user_id: r.user_id as string,
+      username: profMap.get(r.user_id as string) ?? (r.user_id as string).slice(0, 8),
+      is_target_response: !!r.is_target_response,
+      note: (r.note as string) ?? null,
+      type: inferType(r.image_path as string),
+      previewUrls: mediaCandidates(groupId, (r.image_path as string) ?? null),
+    });
+    byChallenge.set(cid, arr);
+  }
+
+  return rows.map((r) => ({
+    id: r.id as string,
+    week_start: r.week_start as string,
+    period: (r.period as number) ?? null,
+    target_user_id: (r.target_user_id as string) ?? null,
+    target_username:
+      (r.target_username as string) ?? profMap.get(r.target_user_id as string) ?? null,
+    theme_label: (r.custom_theme_label as string) ?? themeMap.get(r.theme_id as string) ?? null,
+    responses: byChallenge.get(r.id as string) ?? [],
+  }));
+}
+
 export interface CreateCaptureInput {
   group_id: string;
   user_id: string;

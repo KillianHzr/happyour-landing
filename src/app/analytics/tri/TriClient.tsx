@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./tri.module.css";
 import {
   CaptureRow,
+  ChallengeRow,
   GroupRow,
   MemberRow,
   listGroupCaptures,
+  listGroupChallenges,
   listGroupMembers,
   searchProfiles,
   createCapture,
@@ -64,7 +66,7 @@ async function uploadFile(
 /* ------------------------------- Media thumb ------------------------------ */
 
 // Keyed by previewUrls[0] at call sites so it remounts when the media changes.
-function MediaThumb({ c }: { c: CaptureRow }) {
+function MediaThumb({ c }: { c: { type: CaptureRow["type"]; previewUrls: string[] } }) {
   const urls = c.previewUrls;
   const [idx, setIdx] = useState(0);
 
@@ -616,6 +618,40 @@ function WeekShifter({
   );
 }
 
+/* ------------------------- Challenge + responses -------------------------- */
+
+function ChallengeBlock({ challenge }: { challenge: ChallengeRow }) {
+  return (
+    <div className={`${styles.challengeCard} glass-effect`}>
+      <div className={styles.challengeHead}>
+        🎯 Défi{challenge.period ? ` P${challenge.period}` : ""}
+        {challenge.theme_label ? ` · ${challenge.theme_label}` : ""}
+        {challenge.target_username ? (
+          <span className={styles.muted}> · cible : {challenge.target_username}</span>
+        ) : null}
+      </div>
+      {challenge.responses.length === 0 ? (
+        <div className={styles.muted}>Aucune réponse.</div>
+      ) : (
+        <div className={styles.responseGrid}>
+          {challenge.responses.map((r) => (
+            <div key={r.id} className={styles.responseCard}>
+              <div className={styles.respMedia}>
+                <MediaThumb key={r.previewUrls[0] ?? r.id} c={r} />
+              </div>
+              <div className={styles.user}>
+                {r.username}
+                {r.is_target_response ? " 🎯" : ""}
+                {r.note && <div className={styles.note}>{r.note}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ------------------- Week extras: reactions + challenge ------------------- */
 
 function WeekExtras({
@@ -815,6 +851,7 @@ function CrownGiver({
 export default function TriClient({ groups }: { groups: GroupRow[] }) {
   const [groupId, setGroupId] = useState(groups[0]?.id ?? "");
   const [captures, setCaptures] = useState<CaptureRow[]>([]);
+  const [challenges, setChallenges] = useState<ChallengeRow[]>([]);
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -827,12 +864,14 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
     if (!groupId) return;
     setLoading(true);
     try {
-      const [caps, mem] = await Promise.all([
+      const [caps, mem, chs] = await Promise.all([
         listGroupCaptures(groupId),
         listGroupMembers(groupId),
+        listGroupChallenges(groupId),
       ]);
       setCaptures(caps);
       setMembers(mem);
+      setChallenges(chs);
     } finally {
       setLoading(false);
     }
@@ -844,6 +883,30 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
   }, [refresh]);
 
   const weeks = useMemo(() => bucketByWeek(captures, (c) => c.created_at), [captures]);
+
+  // Challenges grouped by the same reveal-week key as the moments.
+  const challengeMap = useMemo(() => {
+    const m = new Map<string, ChallengeRow[]>();
+    for (const ch of challenges) {
+      const key = getRevealWeekStart(new Date(`${ch.week_start}T12:00:00`)).toISOString();
+      const arr = m.get(key) ?? [];
+      arr.push(ch);
+      m.set(key, arr);
+    }
+    return m;
+  }, [challenges]);
+
+  // Weeks to render = moment weeks + any challenge-only weeks, most recent first.
+  const weeksToRender = useMemo(() => {
+    const map = new Map(weeks.map((w) => [w.key, w]));
+    for (const key of challengeMap.keys()) {
+      if (!map.has(key)) {
+        const ws = new Date(key);
+        map.set(key, { key, weekStart: ws, label: formatRevealWeekLabel(ws), items: [] });
+      }
+    }
+    return [...map.values()].sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
+  }, [weeks, challengeMap]);
 
   // Flat list in display order (weeks desc, items within) for shift+click ranges.
   const flatIds = useMemo(() => weeks.flatMap((w) => w.items.map((i) => i.id)), [weeks]);
@@ -973,11 +1036,11 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
         </div>
       )}
 
-      {!loading && captures.length === 0 && (
+      {!loading && captures.length === 0 && challenges.length === 0 && (
         <div className={styles.empty}>Aucune capture dans ce groupe.</div>
       )}
 
-      {weeks.map((wk) => (
+      {weeksToRender.map((wk) => (
         <section key={wk.key} className={styles.weekSection}>
           <div className={styles.weekHead}>
             <h2 className={styles.weekHeader}>
@@ -1061,6 +1124,9 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
               </div>
             ))}
           </div>
+          {(challengeMap.get(wk.key) ?? []).map((ch) => (
+            <ChallengeBlock key={ch.id} challenge={ch} />
+          ))}
         </section>
       ))}
 
