@@ -21,6 +21,7 @@ import {
   shiftWeek,
   duplicateWeekToGroup,
   giveCrown,
+  deleteChallenge,
   backfillReactions,
   listAllGroups,
   listChallengeWeeks,
@@ -32,7 +33,7 @@ import {
   bucketByWeek,
   formatParisTime,
   formatRevealWeekLabel,
-  getRevealWeekStart,
+  revealWeekStartForChallengeWeek,
   parisInputValueToUtc,
   utcToParisInputValue,
 } from "@/lib/reveal-week";
@@ -620,7 +621,13 @@ function WeekShifter({
 
 /* ------------------------- Challenge + responses -------------------------- */
 
-function ChallengeBlock({ challenge }: { challenge: ChallengeRow }) {
+function ChallengeBlock({
+  challenge,
+  onDeleted,
+}: {
+  challenge: ChallengeRow;
+  onDeleted: () => void;
+}) {
   return (
     <div className={`${styles.challengeCard} glass-effect`}>
       <div className={styles.challengeHead}>
@@ -629,6 +636,18 @@ function ChallengeBlock({ challenge }: { challenge: ChallengeRow }) {
         {challenge.target_username ? (
           <span className={styles.muted}> · cible : {challenge.target_username}</span>
         ) : null}
+        <button
+          type="button"
+          className={styles.smallBtnDanger}
+          style={{ marginLeft: "auto", flex: "none" }}
+          onClick={async () => {
+            if (!confirm("Supprimer ce défi (et ses réponses) ?")) return;
+            await deleteChallenge(challenge.id);
+            onDeleted();
+          }}
+        >
+          Supprimer le défi
+        </button>
       </div>
       {challenge.responses.length === 0 ? (
         <div className={styles.muted}>Aucune réponse.</div>
@@ -767,9 +786,7 @@ function WeekExtras({
           >
             <option value="">Semaine source…</option>
             {weeks.map((w) => {
-              const label = formatRevealWeekLabel(
-                getRevealWeekStart(new Date(`${w.week_start}T12:00:00`))
-              );
+              const label = formatRevealWeekLabel(revealWeekStartForChallengeWeek(w.week_start));
               return (
                 <option key={w.week_start} value={w.week_start}>
                   {label} · {w.count} défi
@@ -888,7 +905,7 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
   const challengeMap = useMemo(() => {
     const m = new Map<string, ChallengeRow[]>();
     for (const ch of challenges) {
-      const key = getRevealWeekStart(new Date(`${ch.week_start}T12:00:00`)).toISOString();
+      const key = revealWeekStartForChallengeWeek(ch.week_start).toISOString();
       const arr = m.get(key) ?? [];
       arr.push(ch);
       m.set(key, arr);
@@ -1125,7 +1142,7 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
             ))}
           </div>
           {(challengeMap.get(wk.key) ?? []).map((ch) => (
-            <ChallengeBlock key={ch.id} challenge={ch} />
+            <ChallengeBlock key={ch.id} challenge={ch} onDeleted={refresh} />
           ))}
         </section>
       ))}

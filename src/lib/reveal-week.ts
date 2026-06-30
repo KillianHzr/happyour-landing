@@ -130,10 +130,26 @@ export function challengeWeekStartForReveal(revealWeekStart: Date): string {
   const mid = new Date(revealWeekStart.getTime() + 2 * 24 * 3600 * 1000); // ~Tuesday
   const p = parisParts(mid);
   const weekday = new Date(Date.UTC(p.y, p.mo - 1, p.day)).getUTCDay(); // 0=Sun
-  const monday = new Date(
-    Date.UTC(p.y, p.mo - 1, p.day - (weekday === 0 ? 6 : weekday - 1))
+  const back = weekday === 0 ? 6 : weekday - 1;
+  const mondayCal = new Date(Date.UTC(p.y, p.mo - 1, p.day - back));
+  // Mirror the app's getChallengeWeekStart EXACTLY: it takes Monday at *Paris*
+  // local midnight and serializes with toISOString(), which in CEST (UTC+2)
+  // yields the *Sunday* date string (e.g. "2026-06-28").
+  const mondayMidnight = parisWallClockToUtc(
+    mondayCal.getUTCFullYear(),
+    mondayCal.getUTCMonth() + 1,
+    mondayCal.getUTCDate(),
+    0,
+    0
   );
-  return monday.toISOString().slice(0, 10);
+  return mondayMidnight.toISOString().slice(0, 10);
+}
+
+/** Inverse of challengeWeekStartForReveal: stored week_start string -> reveal week start. */
+export function revealWeekStartForChallengeWeek(weekStart: string): Date {
+  const base = new Date(`${weekStart}T00:00:00Z`);
+  // Land safely mid-week (Mon/Tue Paris) then snap to the reveal week.
+  return getRevealWeekStart(new Date(base.getTime() + 36 * 3600 * 1000));
 }
 
 const weekFmt = new Intl.DateTimeFormat("fr-FR", {

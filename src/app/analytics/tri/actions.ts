@@ -722,6 +722,15 @@ async function deleteChallengeWeek(groupId: string, weekStart: string): Promise<
   await supabase.from("weekly_challenges").delete().in("id", ids);
 }
 
+/** Delete a single weekly challenge (+its responses +votes). */
+export async function deleteChallenge(challengeId: string): Promise<void> {
+  await requireAuth();
+  await supabase.from("challenge_votes").delete().eq("challenge_id", challengeId);
+  await supabase.from("challenge_responses").delete().eq("challenge_id", challengeId);
+  await supabase.from("challenge_queue_custom").update({ challenge_id: null }).eq("challenge_id", challengeId);
+  await supabase.from("weekly_challenges").delete().eq("id", challengeId);
+}
+
 /**
  * Copy a challenge (+responses +votes) from a source (group, week_start) onto
  * a target reveal week, REPLACING any challenge already present that week.
