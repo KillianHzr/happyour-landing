@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./tri.module.css";
 import {
   CaptureRow,
@@ -15,6 +15,7 @@ import {
   duplicateCapture,
   duplicateCaptures,
   moveCaptures,
+  setCapturesDate,
   shiftWeek,
   duplicateWeekToGroup,
   giveCrown,
@@ -802,7 +803,9 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkGroup, setBulkGroup] = useState("");
+  const [bulkDate, setBulkDate] = useState(() => utcToParisInputValue(new Date()));
   const [modal, setModal] = useState<{ mode: ModalMode; capture: CaptureRow | null } | null>(null);
+  const anchorRef = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     if (!groupId) return;
@@ -826,11 +829,26 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
 
   const weeks = useMemo(() => bucketByWeek(captures, (c) => c.created_at), [captures]);
 
-  const toggleSelect = (id: string) =>
+  // Flat list in display order (weeks desc, items within) for shift+click ranges.
+  const flatIds = useMemo(() => weeks.flatMap((w) => w.items.map((i) => i.id)), [weeks]);
+  const indexById = useMemo(() => {
+    const m = new Map<string, number>();
+    flatIds.forEach((id, i) => m.set(id, i));
+    return m;
+  }, [flatIds]);
+
+  const handleRowSelect = (index: number, shiftKey: boolean) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (shiftKey && anchorRef.current !== null) {
+        const [a, b] = [anchorRef.current, index].sort((x, y) => x - y);
+        for (let i = a; i <= b; i++) next.add(flatIds[i]);
+      } else {
+        const id = flatIds[index];
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        anchorRef.current = index;
+      }
       return next;
     });
 
@@ -851,6 +869,11 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
   const doDelete = async () => {
     if (!confirm(`Supprimer ${selected.size} capture(s) ?`)) return;
     for (const id of selected) await deleteCapture(id);
+    setSelected(new Set());
+    await refresh();
+  };
+  const doSetDate = async () => {
+    await setCapturesDate([...selected], parisInputValueToUtc(bulkDate).toISOString());
     setSelected(new Set());
     await refresh();
   };
@@ -891,6 +914,17 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
       {selected.size > 0 && (
         <div className={`${styles.bulkBar} glass-effect`}>
           <span>{selected.size} sélectionné(s)</span>
+          <input
+            type="datetime-local"
+            className={styles.input}
+            value={bulkDate}
+            onChange={(e) => setBulkDate(e.target.value)}
+            style={{ width: "auto" }}
+          />
+          <button type="button" className={styles.btnGhost} onClick={doSetDate}>
+            Appliquer la date
+          </button>
+          <span className={styles.muted}>|</span>
           <select
             className={styles.select}
             value={bulkGroup}
@@ -966,7 +1000,8 @@ export default function TriClient({ groups }: { groups: GroupRow[] }) {
                   <input
                     type="checkbox"
                     checked={selected.has(c.id)}
-                    onChange={() => toggleSelect(c.id)}
+                    onChange={() => {}}
+                    onClick={(e) => handleRowSelect(indexById.get(c.id) ?? 0, e.shiftKey)}
                   />
                   <span className={styles.badge}>{c.type}</span>
                   <span className={styles.time}>{formatParisTime(c.created_at)}</span>

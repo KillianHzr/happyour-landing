@@ -428,6 +428,14 @@ export async function shiftCapturesByWeeks(
   }
 }
 
+/** Set an exact created_at (ISO UTC) on every selected capture. */
+export async function setCapturesDate(ids: string[], createdAt: string): Promise<void> {
+  await requireAuth();
+  if (ids.length === 0) return;
+  const { error } = await supabase.from("photos").update({ created_at: createdAt }).in("id", ids);
+  if (error) throw new Error(error.message);
+}
+
 export async function moveCaptures(ids: string[], targetGroupId: string): Promise<void> {
   await requireAuth();
   const { data, error } = await supabase.from("photos").select("*").in("id", ids);
