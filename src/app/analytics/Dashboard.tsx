@@ -23,6 +23,7 @@ import GroupExplorer from "./GroupExplorer";
 import UserExplorer from "./UserExplorer";
 import GlobalGroupManager from "./GlobalGroupManager";
 import ChallengeManager from "./ChallengeManager";
+import GlobalCalendar from "./GlobalCalendar";
 
 const GREY = {
   100: "rgba(255,255,255,0.90)",
@@ -513,6 +514,7 @@ export default function Dashboard({ data }: { data: AnalyticsData }) {
               <button className={styles.miniExportBtn} onClick={exportToCSV}>
                 📥 CSV
               </button>
+              <GlobalCalendar />
             </div>
             <div className={styles.explorerSectionLine} />
           </div>

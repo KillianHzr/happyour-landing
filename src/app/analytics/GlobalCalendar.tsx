@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import type { GroupItem } from "@/lib/analytics";
+import { useState, useMemo, useCallback } from "react";
 import styles from "./analytics.module.css";
 import { useScrollLock } from "./useScrollLock";
 
-interface Photo {
+interface GlobalPhoto {
   id: string;
+  user_id: string;
   username: string;
+  group_id: string;
+  group_name: string;
   type: "photo" | "video" | "text" | "audio" | "drawing";
   note: string | null;
   url: string | null;
@@ -22,83 +24,76 @@ const MONTHS_FR = [
   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
 ];
 const DAYS_FR = ["L", "M", "M", "J", "V", "S", "D"];
+const PAGE_SIZE = 20;
 
 const toDateStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
-  const [query, setQuery] = useState("");
+export default function GlobalCalendar() {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<GroupItem | null>(null);
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [photos, setPhotos] = useState<GlobalPhoto[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<string[] | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(PAGE_SIZE);
 
-  useScrollLock(!!selected);
+  useScrollLock(open);
 
-  const filtered = query.trim()
-    ? groups.filter((g) =>
-        g.name.toLowerCase().includes(query.toLowerCase())
-      )
-    : groups;
-
-  // Fermer dropdown au clic extérieur
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
-
-  const selectGroup = useCallback(async (g: GroupItem) => {
-    setSelected(g);
-    setOpen(false);
-    setQuery(g.name);
+  const openCalendar = useCallback(async () => {
+    setOpen(true);
     setSelectedDate(null);
     setSelectedWeek(null);
+    setVisible(PAGE_SIZE);
+
+    if (loaded) return;
+
     setLoading(true);
-    setCurrentMonth(new Date());
-
-    const res = await fetch(`/analytics/api/group-photos?groupId=${g.id}`);
+    const res = await fetch("/analytics/api/all-photos");
     const json = await res.json();
-    setPhotos(json.photos ?? []);
+    const list: GlobalPhoto[] = json.photos ?? [];
+    setPhotos(list);
+    setLoaded(true);
 
-    // Centrer le calendrier sur le mois du dernier post
-    if (json.photos?.length) {
-      const last = json.photos[json.photos.length - 1];
-      setCurrentMonth(new Date(last.date + "T00:00:00"));
+    if (list.length) {
+      setCurrentMonth(new Date(list[list.length - 1].date + "T00:00:00"));
     }
     setLoading(false);
-  }, []);
+  }, [loaded]);
 
-  // Photos groupées par date
+  function closeModal() {
+    setOpen(false);
+    setSelectedDate(null);
+    setSelectedWeek(null);
+    setVisible(PAGE_SIZE);
+  }
+
+  function handleBack() {
+    setSelectedDate(null);
+    setSelectedWeek(null);
+    setVisible(PAGE_SIZE);
+  }
+
   const photosByDate = useMemo(() => {
-    return photos.reduce<Record<string, Photo[]>>((acc, p) => {
+    return photos.reduce<Record<string, GlobalPhoto[]>>((acc, p) => {
       (acc[p.date] ??= []).push(p);
       return acc;
     }, {});
   }, [photos]);
 
-  // Jours du mois courant groupés par semaine
   const weeks = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     const result: (Date | null)[][] = [];
-    
+
     const first = new Date(year, month, 1);
-    let startDow = (first.getDay() + 6) % 7;
+    const startDow = (first.getDay() + 6) % 7;
     const total = new Date(year, month + 1, 0).getDate();
-    
+
     let currentWeek: (Date | null)[] = [];
     for (let i = 0; i < startDow; i++) currentWeek.push(null);
-    
+
     for (let d = 1; d <= total; d++) {
       currentWeek.push(new Date(year, month, d));
       if (currentWeek.length === 7) {
@@ -116,77 +111,36 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
 
-  const getPhotosOfDates = (dates: string[]) => {
-    return photos
-      .filter((p) => dates.includes(p.date))
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
-  };
-
   const displayedPhotos = useMemo(() => {
     if (selectedDate) return photosByDate[selectedDate] ?? [];
-    if (selectedWeek) return getPhotosOfDates(selectedWeek);
+    if (selectedWeek) {
+      return photos
+        .filter((p) => selectedWeek.includes(p.date))
+        .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    }
     return [];
   }, [selectedDate, selectedWeek, photosByDate, photos]);
 
-  function closeModal() {
-    setSelected(null);
-    setPhotos([]);
-    setSelectedDate(null);
-    setSelectedWeek(null);
-    setQuery("");
-  }
+  const selectionStats = useMemo(() => {
+    const users = new Set(displayedPhotos.map((p) => p.user_id));
+    const groups = new Set(displayedPhotos.map((p) => p.group_id));
+    return { users: users.size, groups: groups.size };
+  }, [displayedPhotos]);
 
-  function handleBack() {
-    setSelectedDate(null);
-    setSelectedWeek(null);
-  }
+  const monthCount = useMemo(() => {
+    const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+    return photos.filter((p) => p.date.startsWith(prefix)).length;
+  }, [photos, year, month]);
 
   return (
-    <div className={`${styles.cardFull} ${styles.card} glass-effect`}>
-      <p className={styles.cardLabel}>Explorer un groupe</p>
+    <>
+      <button className={styles.miniExportBtn} onClick={openCalendar}>
+        📅 Calendrier global
+      </button>
 
-      {/* Search */}
-      <div className={styles.explorerSearch} ref={wrapRef}>
-        <input
-          ref={inputRef}
-          className={styles.input}
-          style={{ textAlign: "left", letterSpacing: 0 }}
-          placeholder="Nom du groupe…"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          autoComplete="off"
-        />
-        {open && filtered.length > 0 && (
-          <ul className={styles.dropdown}>
-            {filtered.map((g) => (
-              <li
-                key={g.id}
-                className={styles.dropdownItem}
-                onMouseDown={() => selectGroup(g)}
-              >
-                {g.name}
-              </li>
-            ))}
-          </ul>
-        )}
-        {open && query.trim() && filtered.length === 0 && (
-          <div className={styles.dropdown}>
-            <p className={styles.dropdownEmpty}>Aucun groupe trouvé</p>
-          </div>
-        )}
-      </div>
-
-      {/* Phone Modal */}
-      {selected && (
+      {open && (
         <div className={styles.phoneOverlay} onClick={closeModal}>
-          <div
-            className={styles.phoneFrame}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className={styles.phoneFrame} onClick={(e) => e.stopPropagation()}>
             <div className={styles.phoneNotch} />
 
             <div className={styles.phoneScreen}>
@@ -198,7 +152,7 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
                 ) : (
                   <div style={{ width: 24 }} />
                 )}
-                <span className={styles.phoneGroupName}>{selected.name}</span>
+                <span className={styles.phoneGroupName}>Tous les moments</span>
                 <button className={styles.phoneClose} onClick={closeModal}>
                   ×
                 </button>
@@ -207,30 +161,41 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
               {loading ? (
                 <div className={styles.phoneLoading}>Chargement…</div>
               ) : selectedDate || selectedWeek ? (
-                /* ── Flow view (Day or Week) ── */
+                /* ── Flux jour / semaine (tous groupes) ── */
                 <div className={styles.dayView}>
-                  <p className={styles.dayViewTitle}>
-                    {selectedDate ? (
-                      new Date(selectedDate + "T00:00:00").toLocaleDateString(
-                        "fr-FR",
-                        { weekday: "long", day: "numeric", month: "long" }
-                      )
-                    ) : (
-                      "Flux de la semaine"
-                    )}
-                    <span className={styles.dayCount}>
-                      {" "}· {displayedPhotos.length} moment
-                      {displayedPhotos.length > 1 ? "s" : ""}
-                    </span>
-                  </p>
+                  <div>
+                    <p className={styles.dayViewTitle}>
+                      {selectedDate
+                        ? new Date(selectedDate + "T00:00:00").toLocaleDateString("fr-FR", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                          })
+                        : "Flux de la semaine"}
+                      <span className={styles.dayCount}>
+                        {" "}· {displayedPhotos.length} moment
+                        {displayedPhotos.length > 1 ? "s" : ""}
+                      </span>
+                    </p>
+                    <p className={styles.dayCount} style={{ fontSize: "0.7rem", marginTop: 4 }}>
+                      {selectionStats.users} utilisateur{selectionStats.users > 1 ? "s" : ""} ·{" "}
+                      {selectionStats.groups} groupe{selectionStats.groups > 1 ? "s" : ""}
+                    </p>
+                  </div>
+
                   <div className={styles.dayGrid}>
-                    {displayedPhotos.map((p, i) => {
-                      const showDateLabel = selectedWeek && (i === 0 || displayedPhotos[i-1].date !== p.date);
+                    {displayedPhotos.slice(0, visible).map((p, i, arr) => {
+                      const showDateLabel =
+                        !!selectedWeek && (i === 0 || arr[i - 1].date !== p.date);
                       return (
                         <div key={p.id}>
                           {showDateLabel && (
                             <div className={styles.momentDateLabel}>
-                              {new Date(p.date + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
+                              {new Date(p.date + "T00:00:00").toLocaleDateString("fr-FR", {
+                                weekday: "short",
+                                day: "numeric",
+                                month: "short",
+                              })}
                             </div>
                           )}
                           <MomentItem photo={p} />
@@ -238,16 +203,24 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
                       );
                     })}
                   </div>
+
+                  {visible < displayedPhotos.length && (
+                    <button
+                      className={styles.loadMoreBtn}
+                      style={{ marginTop: 0 }}
+                      onClick={() => setVisible((v) => v + PAGE_SIZE)}
+                    >
+                      Voir plus ({displayedPhotos.length - visible} restants)
+                    </button>
+                  )}
                 </div>
               ) : (
-                /* ── Calendar view ── */
+                /* ── Calendrier global ── */
                 <div className={styles.calendarView}>
                   <div className={styles.calMonthNav}>
                     <button
                       className={styles.calNavBtn}
-                      onClick={() =>
-                        setCurrentMonth(new Date(year, month - 1, 1))
-                      }
+                      onClick={() => setCurrentMonth(new Date(year, month - 1, 1))}
                     >
                       ‹
                     </button>
@@ -256,9 +229,7 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
                     </span>
                     <button
                       className={styles.calNavBtn}
-                      onClick={() =>
-                        setCurrentMonth(new Date(year, month + 1, 1))
-                      }
+                      onClick={() => setCurrentMonth(new Date(year, month + 1, 1))}
                     >
                       ›
                     </button>
@@ -272,15 +243,23 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
                     ))}
 
                     {weeks.map((week, weekIdx) => {
-                      const weekDates = week.filter(d => d !== null).map(d => toDateStr(d!));
-                      const weekCount = weekDates.reduce((sum, d) => sum + (photosByDate[d]?.length ?? 0), 0);
-                      
+                      const weekDates = week
+                        .filter((d): d is Date => d !== null)
+                        .map(toDateStr);
+                      const weekCount = weekDates.reduce(
+                        (sum, d) => sum + (photosByDate[d]?.length ?? 0),
+                        0
+                      );
+
                       return (
                         <div key={`week-${weekIdx}`} className={styles.calWeekRow}>
                           {weekCount > 0 && (
-                            <button 
+                            <button
                               className={styles.calWeekBtn}
-                              onClick={() => setSelectedWeek(weekDates)}
+                              onClick={() => {
+                                setSelectedWeek(weekDates);
+                                setVisible(PAGE_SIZE);
+                              }}
                             >
                               Voir la semaine ({weekCount})
                             </button>
@@ -296,15 +275,15 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
                                 className={`${styles.calDay} ${
                                   count > 0 ? styles.calDayActive : ""
                                 } ${isToday ? styles.calDayToday : ""}`}
-                                onClick={() =>
-                                  count > 0 && setSelectedDate(dateStr)
-                                }
+                                onClick={() => {
+                                  if (count === 0) return;
+                                  setSelectedDate(dateStr);
+                                  setVisible(PAGE_SIZE);
+                                }}
                                 disabled={count === 0}
                               >
                                 <span>{day.getDate()}</span>
-                                {count > 0 && (
-                                  <span className={styles.calDot}>{count}</span>
-                                )}
+                                {count > 0 && <span className={styles.calDot}>{count}</span>}
                               </button>
                             );
                           })}
@@ -314,7 +293,7 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
                   </div>
 
                   <p className={styles.calTotal}>
-                    {photos.length} moment{photos.length > 1 ? "s" : ""} au total
+                    {monthCount} ce mois · {photos.length} moment{photos.length > 1 ? "s" : ""} au total
                   </p>
                 </div>
               )}
@@ -324,14 +303,17 @@ export default function GroupExplorer({ groups }: { groups: GroupItem[] }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
-function MomentItem({ photo }: { photo: Photo }) {
+function MomentItem({ photo }: { photo: GlobalPhoto }) {
   const [errR2, setErrR2] = useState(false);
   const [errFallback, setErrFallback] = useState(false);
-  const time = new Date(photo.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const time = new Date(photo.created_at).toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   const activeSrc = !errR2 ? (photo.url ?? "") : (photo.fallback_url ?? "");
 
@@ -347,13 +329,7 @@ function MomentItem({ photo }: { photo: Photo }) {
     if (photo.type === "video") {
       return (
         <div className={styles.photoWrap}>
-          <video
-            src={activeSrc}
-            className={styles.photoMedia}
-            controls
-            playsInline
-            preload="metadata"
-          />
+          <video src={activeSrc} className={styles.photoMedia} controls playsInline preload="metadata" />
         </div>
       );
     }
@@ -382,16 +358,20 @@ function MomentItem({ photo }: { photo: Photo }) {
             src={activeSrc}
             alt=""
             className={styles.photoMedia}
+            loading="lazy"
             onError={() => {
               if (!errR2) setErrR2(true);
               else setErrFallback(true);
             }}
           />
         ) : (
-          <div className={styles.photoErr} style={{ flexDirection: 'column', gap: '8px', padding: '20px', textAlign: 'center' }}>
+          <div
+            className={styles.photoErr}
+            style={{ flexDirection: "column", gap: 8, padding: 20, textAlign: "center" }}
+          >
             <span>Image indisponible</span>
-            <span style={{ fontSize: '9px', opacity: 0.5, wordBreak: 'break-all' }}>
-              {photo.image_path?.split('/').pop()}
+            <span style={{ fontSize: 9, opacity: 0.5, wordBreak: "break-all" }}>
+              {photo.image_path?.split("/").pop()}
             </span>
           </div>
         )}
@@ -400,16 +380,19 @@ function MomentItem({ photo }: { photo: Photo }) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div className={styles.momentHeader}>
-        <span className={styles.momentUser}>@{photo.username}</span>
+        <span className={styles.momentUser}>
+          @{photo.username}{" "}
+          <span style={{ color: "#555", fontWeight: 500 }}>· {photo.group_name}</span>
+        </span>
         <span className={styles.momentTime}>{time}</span>
       </div>
       {renderMedia()}
       {photo.type !== "text" && photo.note && (
-         <div style={{ padding: "8px 4px 0", fontSize: "12px", color: "#ddd", fontStyle: "italic" }}>
-           {photo.note}
-         </div>
+        <div style={{ padding: "8px 4px 0", fontSize: 12, color: "#ddd", fontStyle: "italic" }}>
+          {photo.note}
+        </div>
       )}
     </div>
   );

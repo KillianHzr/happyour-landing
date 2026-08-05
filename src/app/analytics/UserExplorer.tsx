@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { UserItem } from "@/lib/analytics";
 import styles from "./analytics.module.css";
+import { useScrollLock } from "./useScrollLock";
 
 interface Photo {
   id: string;
@@ -25,6 +26,8 @@ export default function UserExplorer({ users }: { users: UserItem[] }) {
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(10);
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  useScrollLock(!!selected);
 
   const filtered = query.trim()
     ? users.filter((u) => u.username.toLowerCase().includes(query.toLowerCase()))
